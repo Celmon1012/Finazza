@@ -15,7 +15,6 @@ if (nodeEnv === "production" && !process.env.JWT_SECRET) {
 export const config = {
   nodeEnv,
   port: Number(process.env.PORT || 4000),
-  mongoUri: process.env.MONGODB_URI || "",
   supabaseUrl: process.env.SUPABASE_URL || "",
   supabasePublishableKey: process.env.SUPABASE_PUBLISHABLE_KEY || "",
   supabaseSecretKey: process.env.SUPABASE_SECRET_KEY || "",
@@ -24,7 +23,6 @@ export const config = {
   appUrl: process.env.APP_URL || "http://localhost:3000",
   apiPublicUrl: process.env.API_PUBLIC_URL || `http://localhost:${process.env.PORT || 4000}`,
   uploadDir: path.resolve(here, "../uploads"),
-  dataDir: path.resolve(here, "../data"),
   resendApiKey: process.env.RESEND_API_KEY || "",
   emailFrom: process.env.EMAIL_FROM || "FINAZZA <noreply@finazza.app>",
   isProd: nodeEnv === "production",

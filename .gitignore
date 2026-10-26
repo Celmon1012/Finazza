@@ -4,8 +4,11 @@ dist
 .turbo
 .env
 .env.local
+.env.*
+!.env.example
 apps/api/.env
 apps/web/.env.local
+vercel.env
 apps/api/uploads/*
 !apps/api/uploads/.gitkeep
 apps/api/data

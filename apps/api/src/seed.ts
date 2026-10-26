@@ -302,7 +302,7 @@ export async function seedIfEmpty() {
     },
   ]);
 
-  const metals = rooms.find((room) => room.slug === "precious-metals")!;
+  const metals = rooms.find((room: { slug?: string }) => room.slug === "precious-metals")!;
   const metalsMessages = await Message.create([
     {
       conversation: metals._id,
@@ -385,7 +385,7 @@ export async function seedIfEmpty() {
   const everyone = [admin, alex, jordan, sam];
   for (const person of everyone) {
     await ReadState.insertMany(
-      rooms.map((room) => ({
+      rooms.map((room: { _id: string; slug?: string; lastMessageAt?: Date }) => ({
         user: person._id,
         conversation: room._id,
         lastReadAt: room.slug === "precious-metals" && String(person._id) === String(alex._id) ? daysAgo(2) : new Date(),

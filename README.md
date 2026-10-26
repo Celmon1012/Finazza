@@ -10,7 +10,7 @@ The optional chart annotator is included. Native mobile apps are not.
 | --- | --- |
 | Web | Next.js, React, TypeScript, Tailwind |
 | API | Node.js, Express, TypeScript, Zod |
-| Data | Supabase Postgres. Local MongoDB remains only until the schema is applied. |
+| Data | Supabase Postgres |
 | Auth | JWT, bcrypt |
 | Realtime | Socket.IO |
 | Files | Local disk in development. Images are re-encoded and PDF pages are copied so source metadata is dropped. |
@@ -26,7 +26,7 @@ npm run dev
 - Web: http://localhost:3000
 - API: http://localhost:4000
 
-The database is the Supabase project at `https://cbnsmwinlqcxxrjsbcop.supabase.co`. The publishable key can read the API, but it cannot create tables. Open the Supabase SQL editor and run `apps/api/supabase/schema.sql`, then set `SUPABASE_SECRET_KEY` in `apps/api/.env`. Until that secret key is present, the API still starts an embedded MongoDB in `apps/api/data` so the app keeps running.
+The API stores accounts, posts, investments, chat, and notifications in Supabase. Open the Supabase SQL editor, run `apps/api/supabase/schema.sql`, and set `SUPABASE_URL` plus `SUPABASE_SECRET_KEY` in `apps/api/.env`.
 
 ### Demo accounts
 
