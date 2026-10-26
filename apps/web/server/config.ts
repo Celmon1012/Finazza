@@ -4,7 +4,8 @@ import { fileURLToPath } from "url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 for (const file of [
-  path.resolve(here, "../.env"),
+  path.resolve(here, "../../api/.env"),
+  path.resolve(process.cwd(), ".env"),
   path.resolve(process.cwd(), "apps/api/.env"),
   path.resolve(process.cwd(), "../api/.env"),
 ]) {
@@ -31,7 +32,7 @@ export const config = {
   clientOrigin: publicUrl(process.env.CLIENT_ORIGIN, hostedOrigin || "http://localhost:3000"),
   appUrl: publicUrl(process.env.APP_URL, hostedOrigin || "http://localhost:3000"),
   apiPublicUrl: publicUrl(process.env.API_PUBLIC_URL, hostedOrigin || `http://localhost:${process.env.PORT || 4000}`),
-  uploadDir: path.resolve(here, "../uploads"),
+  uploadDir: process.env.VERCEL ? path.join("/tmp", "finazza-uploads") : path.resolve(here, "../../api/uploads"),
   resendApiKey: process.env.RESEND_API_KEY || "",
   emailFrom: process.env.EMAIL_FROM || "FINAZZA <noreply@finazza.app>",
   isProd: nodeEnv === "production",
