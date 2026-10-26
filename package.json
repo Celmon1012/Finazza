@@ -1,0 +1,21 @@
+{
+  "name": "finazza",
+  "private": true,
+  "version": "0.1.0",
+  "description": "FINAZZA investment social network — web MVP",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,web -c yellow,cyan \"npm run dev -w @finazza/api\" \"npm run dev -w @finazza/web\"",
+    "typecheck": "npm run typecheck -w @finazza/api && npm run typecheck -w @finazza/web",
+    "build": "npm run build -w @finazza/api && npm run build -w @finazza/web",
+    "start": "concurrently -n api,web -c yellow,cyan \"npm run start -w @finazza/api\" \"npm run start -w @finazza/web\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  background: #ffffff;
+  color: #1a1a1a;
+  min-height: 100%;
+}
+
+body {
+  font-family: var(--font-sans), sans-serif;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #d4d4d8 transparent;
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  outline: none;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px #e39b12;
+}
+
+.gold-fill {
+  background: linear-gradient(90deg, #f0a020, #f6b429);
+  color: #1a1004;
+}
+
+.gold-fill:hover {
+  filter: brightness(1.03);
+}
+
+.gold-text {
+  background: linear-gradient(90deg, #e8941a, #f0a020);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}

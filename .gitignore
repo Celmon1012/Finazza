@@ -1,0 +1,16 @@
+node_modules
+.next
+dist
+.turbo
+.env
+.env.local
+apps/api/.env
+apps/web/.env.local
+apps/api/uploads/*
+!apps/api/uploads/.gitkeep
+apps/api/data
+*.log
+.DS_Store
+coverage
+tsconfig.tsbuildinfo
+apps/web/tsconfig.tsbuildinfo
