@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   function connect(token: string) {
     socket?.disconnect();
-    socket = io(API_URL, { auth: { token } });
+    socket = io(API_URL || undefined, { auth: { token } });
     socket.on("notification:new", () => {
       setBadges((current) => ({ ...current, notifications: current.notifications + 1 }));
     });

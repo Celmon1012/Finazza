@@ -8,7 +8,7 @@ import { Button, inputClass, Spinner } from "@/components/ui";
 import { api } from "@/lib/api";
 
 function ResetForm() {
-  const token = useSearchParams().get("token") || "";
+  const token = useSearchParams()?.get("token") || "";
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");

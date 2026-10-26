@@ -12,6 +12,23 @@ import metaRoutes from "./routes/meta.js";
 import postRoutes from "./routes/posts.js";
 import userRoutes from "./routes/users.js";
 
+function isAllowedOrigin(origin: string | undefined) {
+  if (!origin) return true;
+  if (
+    origin === config.clientOrigin ||
+    origin === "http://localhost:3000" ||
+    origin === "http://127.0.0.1:3000" ||
+    origin === "https://finazza.vercel.app"
+  ) {
+    return true;
+  }
+  try {
+    return new URL(origin).hostname.endsWith(".vercel.app");
+  } catch {
+    return false;
+  }
+}
+
 export function createApp() {
   const app = express();
   app.use(
@@ -21,10 +38,19 @@ export function createApp() {
   );
   app.use(
     cors({
-      origin: [config.clientOrigin, "http://localhost:3000", "http://127.0.0.1:3000"],
+      origin(origin, callback) {
+        callback(null, isAllowedOrigin(origin));
+      },
       credentials: true,
     }),
   );
+  app.use("/api", (_req, res, next) => {
+    if (config.isProd && (!process.env.JWT_SECRET || !config.supabaseUrl || !config.supabaseSecretKey)) {
+      res.status(500).json({ error: "The server is missing Supabase or JWT settings." });
+      return;
+    }
+    next();
+  });
   app.use(express.json({ limit: "1mb" }));
   app.use("/uploads", express.static(config.uploadDir, { fallthrough: false, maxAge: "7d" }));
 

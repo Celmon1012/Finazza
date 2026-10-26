@@ -21,7 +21,7 @@ const links = [
 ];
 
 export function Shell({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
+  const pathname = usePathname() || "";
   const { user, badges, logout } = useAuth();
   const router = useRouter();
 

@@ -11,12 +11,13 @@ import type { Post } from "@/lib/types";
 
 export default function PostPage() {
   const params = useParams<{ id: string }>();
+  const id = params?.id ?? "";
   const [post, setPost] = useState<Post | null>(null);
   const [replies, setReplies] = useState<Post[]>([]);
   const [error, setError] = useState("");
 
   function load() {
-    return api<{ post: Post; replies: Post[] }>(`/api/posts/${params.id}`).then((data) => {
+    return api<{ post: Post; replies: Post[] }>(`/api/posts/${id}`).then((data) => {
       setPost(data.post);
       setReplies(data.replies);
     });
@@ -24,7 +25,7 @@ export default function PostPage() {
 
   useEffect(() => {
     load().catch((err) => setError(err instanceof Error ? err.message : "Post unavailable"));
-  }, [params.id]);
+  }, [id]);
 
   return (
     <div>
@@ -37,7 +38,7 @@ export default function PostPage() {
       {error && <p className="px-4 py-6 text-sm text-[#ff5d73]">{error}</p>}
       {!post && !error && <Spinner />}
       {post && <PostCard post={post} onChange={load} />}
-      <Composer replyTo={params.id} placeholder="Post your reply" onPosted={(reply) => setReplies((current) => [...current, reply])} />
+      <Composer replyTo={id} placeholder="Post your reply" onPosted={(reply) => setReplies((current) => [...current, reply])} />
       {replies.map((reply) => (
         <PostCard key={reply.id} post={reply} />
       ))}

@@ -5,5 +5,5 @@ import { ChatView } from "@/components/chat-view";
 
 export default function ChatThreadPage() {
   const params = useParams<{ id: string }>();
-  return <ChatView activeId={params.id} />;
+  return <ChatView activeId={params?.id ?? ""} />;
 }

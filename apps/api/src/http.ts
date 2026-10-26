@@ -1,5 +1,13 @@
 import type { NextFunction, Request, Response } from "express";
 
+declare global {
+  namespace Express {
+    interface Request {
+      user?: any;
+    }
+  }
+}
+
 export class HttpError extends Error {
   status: number;
 

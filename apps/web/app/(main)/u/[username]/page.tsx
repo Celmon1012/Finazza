@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 
 export default function ProfilePage() {
   const params = useParams<{ username: string }>();
+  const username = params?.username ?? "";
   const { user } = useAuth();
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -23,11 +24,11 @@ export default function ProfilePage() {
   const [error, setError] = useState("");
 
   async function load() {
-    const data = await api<{ profile: Profile }>(`/api/users/${params.username}`);
+    const data = await api<{ profile: Profile }>(`/api/users/${username}`);
     setProfile(data.profile);
     const [postData, investmentData] = await Promise.all([
-      api<{ posts: Post[] }>(`/api/users/${params.username}/posts`),
-      api<{ investments: Investment[] }>(`/api/investments/user/${params.username}`),
+      api<{ posts: Post[] }>(`/api/users/${username}/posts`),
+      api<{ investments: Investment[] }>(`/api/investments/user/${username}`),
     ]);
     setPosts(postData.posts);
     setInvestments(investmentData.investments);
@@ -36,22 +37,22 @@ export default function ProfilePage() {
   useEffect(() => {
     setError("");
     load().catch((err) => setError(err instanceof Error ? err.message : "Profile unavailable"));
-  }, [params.username]);
+  }, [username]);
 
   async function follow() {
-    const result = await api<{ following: boolean }>(`/api/users/${params.username}/follow`, { method: "POST" });
+    const result = await api<{ following: boolean }>(`/api/users/${username}/follow`, { method: "POST" });
     setProfile((current) => (current ? { ...current, isFollowing: result.following, followersCount: current.followersCount + (result.following ? 1 : -1) } : current));
   }
 
   async function setFlag(kind: "block" | "mute", value: boolean) {
-    await api(`/api/users/${params.username}/${kind}`, { method: "POST", body: JSON.stringify(kind === "block" ? { blocked: value } : { muted: value }) });
+    await api(`/api/users/${username}/${kind}`, { method: "POST", body: JSON.stringify(kind === "block" ? { blocked: value } : { muted: value }) });
     await load();
   }
 
   async function message() {
     const result = await api<{ conversation: Conversation }>("/api/conversations", {
       method: "POST",
-      body: JSON.stringify({ type: "dm", username: params.username }),
+      body: JSON.stringify({ type: "dm", username: username }),
     });
     router.push(`/chat/${result.conversation.id}`);
   }

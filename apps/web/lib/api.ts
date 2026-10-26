@@ -1,4 +1,11 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const configured = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
+const unusable =
+  !configured ||
+  configured.includes("YOUR-API-URL") ||
+  configured.includes("localhost") ||
+  configured.includes("127.0.0.1");
+
+export const API_URL = process.env.NODE_ENV === "production" && unusable ? "" : configured || "http://localhost:4000";
 export const TOKEN_KEY = "finazza_token";
 
 export class ApiError extends Error {

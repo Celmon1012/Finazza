@@ -3,13 +3,22 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.resolve(here, "../.env") });
+for (const file of [
+  path.resolve(here, "../.env"),
+  path.resolve(process.cwd(), "apps/api/.env"),
+  path.resolve(process.cwd(), "../api/.env"),
+]) {
+  dotenv.config({ path: file });
+}
 
 const nodeEnv = process.env.NODE_ENV || "development";
 const jwtSecret = process.env.JWT_SECRET || "dev-only-finazza-change-me";
+const vercelHost = (process.env.VERCEL_PROJECT_PRODUCTION_URL || "").replace(/^https?:\/\//, "");
+const hostedOrigin = vercelHost ? `https://${vercelHost}` : "";
 
-if (nodeEnv === "production" && !process.env.JWT_SECRET) {
-  throw new Error("JWT_SECRET is required in production");
+function publicUrl(value: string | undefined, fallback: string) {
+  if (!value || value.includes("YOUR-VERCEL") || value.includes("YOUR-API")) return fallback;
+  return value;
 }
 
 export const config = {
@@ -19,9 +28,9 @@ export const config = {
   supabasePublishableKey: process.env.SUPABASE_PUBLISHABLE_KEY || "",
   supabaseSecretKey: process.env.SUPABASE_SECRET_KEY || "",
   jwtSecret,
-  clientOrigin: process.env.CLIENT_ORIGIN || "http://localhost:3000",
-  appUrl: process.env.APP_URL || "http://localhost:3000",
-  apiPublicUrl: process.env.API_PUBLIC_URL || `http://localhost:${process.env.PORT || 4000}`,
+  clientOrigin: publicUrl(process.env.CLIENT_ORIGIN, hostedOrigin || "http://localhost:3000"),
+  appUrl: publicUrl(process.env.APP_URL, hostedOrigin || "http://localhost:3000"),
+  apiPublicUrl: publicUrl(process.env.API_PUBLIC_URL, hostedOrigin || `http://localhost:${process.env.PORT || 4000}`),
   uploadDir: path.resolve(here, "../uploads"),
   resendApiKey: process.env.RESEND_API_KEY || "",
   emailFrom: process.env.EMAIL_FROM || "FINAZZA <noreply@finazza.app>",
