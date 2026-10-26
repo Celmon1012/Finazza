@@ -1,5 +1,4 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { createApp } from "../../server/app";
 
 export const config = {
   api: {
@@ -8,8 +7,22 @@ export const config = {
   },
 };
 
-const app = createApp();
+let appPromise: Promise<(req: NextApiRequest, res: NextApiResponse) => void> | null = null;
 
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
-  app(req, res);
+function getApp() {
+  if (!appPromise) {
+    appPromise = import("../../server/app").then(({ createApp }) => createApp());
+  }
+  return appPromise;
+}
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  try {
+    const app = await getApp();
+    app(req, res);
+  } catch (error) {
+    appPromise = null;
+    const message = error instanceof Error ? error.message : "The API failed to start";
+    res.status(500).json({ error: message });
+  }
 }

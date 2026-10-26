@@ -1,9 +1,13 @@
 import fs from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
-import sharp from "sharp";
 import { PDFDocument } from "pdf-lib";
 import { config } from "./config.js";
+
+async function loadSharp() {
+  const mod = await import("sharp");
+  return mod.default;
+}
 
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
@@ -23,6 +27,7 @@ async function writeBuffer(filename: string, buffer: Buffer) {
 
 /** Re-encode images so EXIF and other metadata are dropped. */
 export async function saveImage(buffer: Buffer) {
+  const sharp = await loadSharp();
   const image = sharp(buffer, { failOn: "error" }).rotate();
   const meta = await image.metadata();
   if (!meta.width || !meta.height) {
@@ -58,6 +63,7 @@ export async function saveUpload(buffer: Buffer, mimeType: string, allowPdf: boo
 }
 
 export async function saveSvgImage(svg: string) {
+  const sharp = await loadSharp();
   const buffer = await sharp(Buffer.from(svg)).png().toBuffer();
   return saveImage(buffer);
 }
