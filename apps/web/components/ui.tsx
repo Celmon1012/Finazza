@@ -97,10 +97,23 @@ export function AvatarPicker({
   name: string;
   url?: string | null;
   size?: number;
-  onChange: (avatarUrl: string) => void;
+  onChange: (avatarUrl: string | null) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+
+  async function remove() {
+    setBusy(true);
+    setError("");
+    try {
+      const result = await api<{ user: { avatarUrl: string | null } }>("/api/users/me/avatar", { method: "DELETE" });
+      onChange(result.user.avatarUrl);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not remove the photo");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function pick(file: File) {
     setBusy(true);
@@ -123,7 +136,7 @@ export function AvatarPicker({
         <Avatar name={name} url={url} size={size} />
         <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-neutral-300 px-4 py-2 text-sm hover:bg-neutral-100">
           <Camera size={16} />
-          {busy ? "Uploading…" : "Upload photo"}
+          {busy ? "Working…" : "Upload photo"}
           <input
             type="file"
             accept="image/png,image/jpeg,image/webp"
@@ -136,6 +149,11 @@ export function AvatarPicker({
             }}
           />
         </label>
+        {url && (
+          <button type="button" className="text-sm text-neutral-500 hover:text-[#ff5d73]" disabled={busy} onClick={() => remove().catch(() => undefined)}>
+            Remove photo
+          </button>
+        )}
       </div>
       {error && <p className="mt-2 text-sm text-[#ff5d73]">{error}</p>}
     </div>

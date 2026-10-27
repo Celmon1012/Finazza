@@ -36,6 +36,10 @@ export function trimNum(value: number) {
   return Number(value.toFixed(2)).toString();
 }
 
+function priced(amount: number, approximate?: boolean) {
+  return `${approximate ? "~" : ""}$${trimNum(amount)}`;
+}
+
 export function computeReturn(buyPrice: number, sellPrice: number | null, recordType: string) {
   if (recordType !== "trade" || sellPrice == null || buyPrice <= 0) {
     return { returnPercent: null, profitPerUnit: null };
@@ -53,6 +57,7 @@ export function snapshotLabel(input: {
   quantity: number;
   unit: string;
   buyPrice: number;
+  buyPriceApproximate?: boolean;
   priceUnit: string;
   returnPercent: number | null;
 }) {
@@ -63,13 +68,13 @@ export function snapshotLabel(input: {
   }
   if (input.recordType === "holding" && input.assetClass === "commodity") {
     const priceUnit = input.priceUnit.toLowerCase() === "troy oz" ? "oz" : input.priceUnit;
-    return `${input.assetName} ${trimNum(input.quantity)} ${input.unit} • $${trimNum(input.buyPrice)}/${priceUnit}`;
+    return `${input.assetName} ${trimNum(input.quantity)} ${input.unit} • ${priced(input.buyPrice, input.buyPriceApproximate)}/${priceUnit}`;
   }
   if (input.recordType === "holding" && input.assetClass === "collectible") {
     return `${input.assetName} • holding`;
   }
   if (input.recordType === "holding") {
-    return `${input.assetName} • bought $${trimNum(input.buyPrice)}`;
+    return `${input.assetName} • bought ${priced(input.buyPrice, input.buyPriceApproximate)}`;
   }
   return input.assetName;
 }

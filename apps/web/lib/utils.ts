@@ -15,6 +15,15 @@ export function timeAgo(iso?: string | null) {
   return new Date(iso).toLocaleDateString();
 }
 
+/** A leading ~ means the buy price is approximate, as in ~120. */
+export function parseBuyPrice(value: string) {
+  const match = value.trim().match(/^(~)?\s*(\d+(?:\.\d+)?)$/);
+  if (!match) return null;
+  const amount = Number(match[2]);
+  if (!Number.isFinite(amount) || amount < 0 || amount > 1e12) return null;
+  return { amount, approximate: Boolean(match[1]) };
+}
+
 export function money(value: number) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(value);
 }

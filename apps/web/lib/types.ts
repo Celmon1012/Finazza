@@ -79,6 +79,7 @@ export type Investment = {
   quantity: number;
   unit: string;
   buyPrice: number;
+  buyPriceApproximate: boolean;
   sellPrice: number | null;
   priceUnit: string;
   buyDate: string;

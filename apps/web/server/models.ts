@@ -1,5 +1,18 @@
 import { fail, table } from "./supabase.js";
 
+const APPROXIMATE_BUY = "[[~]]";
+
+function unpackInvestmentNotes(notes: string | null | undefined) {
+  const raw = notes || "";
+  if (!raw.startsWith(APPROXIMATE_BUY)) return { notes: raw, buyPriceApproximate: false };
+  return { notes: raw.slice(APPROXIMATE_BUY.length), buyPriceApproximate: true };
+}
+
+function packInvestmentNotes(notes: string | null | undefined, approximate: boolean) {
+  const { notes: clean } = unpackInvestmentNotes(notes);
+  return approximate ? `${APPROXIMATE_BUY}${clean}` : clean;
+}
+
 const notificationDefaults = {
   likes: true,
   replies: true,
@@ -589,6 +602,7 @@ export const Repost = {
 };
 
 function mapInvestment(row: any) {
+  const storedNotes = unpackInvestmentNotes(row.notes);
   const doc: any = {
     _id: row.id,
     id: row.id,
@@ -600,11 +614,12 @@ function mapInvestment(row: any) {
     quantity: num(row.quantity),
     unit: row.unit,
     buyPrice: num(row.buy_price),
+    buyPriceApproximate: storedNotes.buyPriceApproximate,
     sellPrice: num(row.sell_price),
     priceUnit: row.price_unit,
     buyDate: row.buy_date,
     sellDate: row.sell_date,
-    notes: row.notes || "",
+    notes: storedNotes.notes,
     returnPercent: num(row.return_percent),
     profitPerUnit: num(row.profit_per_unit),
     createdAt: row.created_at,
@@ -624,7 +639,7 @@ function mapInvestment(row: any) {
         price_unit: doc.priceUnit,
         buy_date: iso(doc.buyDate),
         sell_date: iso(doc.sellDate),
-        notes: doc.notes || "",
+        notes: packInvestmentNotes(doc.notes, Boolean(doc.buyPriceApproximate)),
         return_percent: doc.returnPercent,
         profit_per_unit: doc.profitPerUnit,
       })
@@ -675,7 +690,7 @@ function investmentRow(input: any) {
     price_unit: input.priceUnit,
     buy_date: iso(input.buyDate),
     sell_date: iso(input.sellDate),
-    notes: input.notes || "",
+    notes: packInvestmentNotes(input.notes, Boolean(input.buyPriceApproximate)),
     return_percent: input.returnPercent ?? null,
     profit_per_unit: input.profitPerUnit ?? null,
   };

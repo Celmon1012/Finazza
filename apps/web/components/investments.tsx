@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { Camera } from "lucide-react";
 import { api, mediaUrl } from "@/lib/api";
 import type { Investment } from "@/lib/types";
-import { dateInput, DISCLAIMER, money, percent } from "@/lib/utils";
+import { dateInput, DISCLAIMER, money, parseBuyPrice, percent } from "@/lib/utils";
 import { ProofEditor } from "./proof-editor";
 import { ReportButton } from "./report-button";
 import { Button, Empty, Field, inputClass } from "./ui";
@@ -52,7 +53,7 @@ export function InvestmentEditor({
           recordType: initial.recordType,
           quantity: String(initial.quantity),
           unit: initial.unit,
-          buyPrice: String(initial.buyPrice),
+          buyPrice: `${initial.buyPriceApproximate ? "~" : ""}${initial.buyPrice}`,
           sellPrice: initial.sellPrice == null ? "" : String(initial.sellPrice),
           priceUnit: initial.priceUnit,
           buyDate: dateInput(initial.buyDate),
@@ -70,6 +71,11 @@ export function InvestmentEditor({
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
+    const buy = parseBuyPrice(form.buyPrice);
+    if (!buy) {
+      setError("Enter a buy price. Put ~ before the number if the amount is approximate.");
+      return;
+    }
     setBusy(true);
     setError("");
     const payload = {
@@ -79,7 +85,8 @@ export function InvestmentEditor({
       recordType: form.recordType,
       quantity: Number(form.quantity),
       unit: form.unit,
-      buyPrice: Number(form.buyPrice),
+      buyPrice: buy.amount,
+      buyPriceApproximate: buy.approximate,
       sellPrice: form.recordType === "trade" ? Number(form.sellPrice) : null,
       priceUnit: form.priceUnit || form.unit,
       buyDate: form.buyDate,
@@ -137,7 +144,8 @@ export function InvestmentEditor({
           <input className={inputClass} list="units" value={form.unit} onChange={(event) => set("unit", event.target.value)} required />
         </Field>
         <Field label="Buy price (USD)">
-          <input className={inputClass} inputMode="decimal" value={form.buyPrice} onChange={(event) => set("buyPrice", event.target.value)} required />
+          <input className={inputClass} value={form.buyPrice} onChange={(event) => set("buyPrice", event.target.value)} placeholder="120 or ~120" required />
+          <span className="block text-xs leading-5 text-neutral-500">Use ~ before the amount when it is approximate.</span>
         </Field>
         <Field label="Price unit">
           <input className={inputClass} list="units" value={form.priceUnit} onChange={(event) => set("priceUnit", event.target.value)} placeholder="shares, troy oz, pieces" required />
@@ -186,35 +194,23 @@ export function InvestmentCard({
   item,
   mine,
   onChange,
+  onUploadProof,
 }: {
   item: Investment;
   mine?: boolean;
   onChange?: (next: Investment | null) => void;
+  onUploadProof?: () => void;
 }) {
-  const [editingProof, setEditingProof] = useState(false);
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  async function upload(file: File) {
-    setBusy(true);
-    setError("");
-    const form = new FormData();
-    form.append("file", file);
-    form.append("redactionConfirmed", "true");
-    try {
-      const result = await api<{ investment: Investment }>(`/api/investments/${item.id}/proof`, { method: "POST", body: form });
-      onChange?.(result.investment);
-      setEditingProof(false);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function removeProof() {
-    const result = await api<{ investment: Investment }>(`/api/investments/${item.id}/proof`, { method: "DELETE" });
-    onChange?.(result.investment);
+    setError("");
+    try {
+      const result = await api<{ investment: Investment }>(`/api/investments/${item.id}/proof`, { method: "DELETE" });
+      onChange?.(result.investment);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not remove the proof");
+    }
   }
 
   async function removeRecord() {
@@ -239,7 +235,7 @@ export function InvestmentCard({
       </div>
       <dl className="mt-3 grid grid-cols-2 gap-2 text-sm text-neutral-600">
         <div>Quantity: {item.quantity} {item.unit}</div>
-        <div>Buy: {money(item.buyPrice)} / {item.priceUnit}</div>
+        <div>Buy: {item.buyPriceApproximate ? "~" : ""}{money(item.buyPrice)} / {item.priceUnit}</div>
         {item.sellPrice != null && <div>Sell: {money(item.sellPrice)} / {item.priceUnit}</div>}
         {item.profitPerUnit != null && <div>Gross per unit: {money(item.profitPerUnit)}</div>}
       </dl>
@@ -248,6 +244,7 @@ export function InvestmentCard({
       {item.comparisonNote && <p className="mt-1 text-xs text-[#c56a00]">{item.comparisonNote}</p>}
 
       <div className="mt-3 rounded-xl border border-[#ffc14d]/30 bg-[#ffc14d]/5 p-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#c56a00]">Proof of investment</p>
         {item.proof ? (
           <div className="space-y-2">
             <p className="text-sm font-medium text-[#c56a00]">{item.proof.label}</p>
@@ -270,17 +267,17 @@ export function InvestmentCard({
             </div>
           </div>
         ) : (
-          <p className="text-sm text-neutral-600">No proof uploaded. Add a receipt or photo after covering the sensitive details.</p>
+          <p className="mt-2 text-sm text-neutral-600">No photo yet. Upload a receipt or photo, then cover the sensitive details.</p>
         )}
         {mine && (
           <div className="mt-3">
-            <Button type="button" onClick={() => setEditingProof(true)}>
-              {item.proof ? "Replace proof" : "Upload proof"}
+            <Button type="button" onClick={onUploadProof}>
+              <Camera size={16} />
+              {item.proof ? "Replace proof photo" : "Upload proof photo"}
             </Button>
-            {error && !editingProof && <p className="mt-2 text-sm text-[#ff5d73]">{error}</p>}
+            {error && <p className="mt-2 text-sm text-[#ff5d73]">{error}</p>}
           </div>
         )}
-        {editingProof && <ProofEditor busy={busy} error={error} onClose={() => setEditingProof(false)} onSave={upload} />}
       </div>
       {mine && (
         <button type="button" className="mt-3 text-xs text-[#ff5d73]" onClick={removeRecord}>
@@ -301,23 +298,104 @@ export function PortfolioBoard({
   onChange: (items: Investment[]) => void;
 }) {
   const [editing, setEditing] = useState<Investment | null | "new">(null);
+  const [proofItem, setProofItem] = useState<Investment | null>(null);
+  const [pickingProof, setPickingProof] = useState(false);
+  const [attachProofAfterSave, setAttachProofAfterSave] = useState(false);
+  const [proofBusy, setProofBusy] = useState(false);
+  const [proofError, setProofError] = useState("");
+
+  function startProof() {
+    setPickingProof(false);
+    if (items.length === 0) {
+      setAttachProofAfterSave(true);
+      setEditing("new");
+      return;
+    }
+    if (items.length === 1) {
+      setProofItem(items[0]);
+      return;
+    }
+    setPickingProof(true);
+  }
+
+  async function uploadProof(file: File) {
+    if (!proofItem) return;
+    setProofBusy(true);
+    setProofError("");
+    const form = new FormData();
+    form.append("file", file);
+    form.append("redactionConfirmed", "true");
+    try {
+      const result = await api<{ investment: Investment }>(`/api/investments/${proofItem.id}/proof`, { method: "POST", body: form });
+      onChange(items.map((row) => (row.id === result.investment.id ? result.investment : row)));
+      setProofItem(null);
+    } catch (err) {
+      setProofError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setProofBusy(false);
+    }
+  }
 
   return (
     <div>
       {mine && (
-        <div className="flex items-center justify-between gap-3 px-4 py-3">
+        <div className="mx-4 mt-4 rounded-2xl border border-[#ffc14d]/40 bg-[#ffc14d]/10 p-4">
+          <h3 className="font-semibold">Proof of investment</h3>
+          <p className="mt-1 text-sm leading-6 text-neutral-600">
+            Upload a photo of a receipt or statement. The editor lets you cover names, account numbers, and addresses before the photo is public.
+          </p>
+          <Button type="button" className="mt-3" onClick={startProof}>
+            <Camera size={16} />
+            Upload proof photo
+          </Button>
+        </div>
+      )}
+      {mine && (
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
           <p className="max-w-md text-xs leading-5 text-neutral-500">{DISCLAIMER}</p>
-          <Button onClick={() => setEditing(editing === "new" ? null : "new")}>Add</Button>
+          <Button type="button" variant="outline" onClick={() => { setAttachProofAfterSave(false); setEditing(editing === "new" ? null : "new"); }}>
+            Add holding
+          </Button>
+        </div>
+      )}
+      {mine && pickingProof && (
+        <div className="mx-4 mb-4 rounded-2xl border border-neutral-200 p-4">
+          <p className="text-sm font-medium">Which holding is this proof photo for?</p>
+          <div className="mt-3 flex flex-col gap-2">
+            {items.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className="rounded-xl border border-neutral-200 px-3 py-2 text-left text-sm hover:bg-neutral-50"
+                onClick={() => {
+                  setProofItem(item);
+                  setPickingProof(false);
+                }}
+              >
+                {item.snapshotLabel}
+              </button>
+            ))}
+          </div>
         </div>
       )}
       {mine && editing && (
         <div className="px-4 pb-4">
+          {attachProofAfterSave && editing === "new" && (
+            <p className="mb-3 text-sm text-neutral-600">Save the holding first. The photo editor opens next so you can cover sensitive details.</p>
+          )}
           <InvestmentEditor
             initial={editing === "new" ? null : editing}
-            onCancel={() => setEditing(null)}
+            onCancel={() => {
+              setAttachProofAfterSave(false);
+              setEditing(null);
+            }}
             onSaved={(investment) => {
               onChange([investment, ...items.filter((item) => item.id !== investment.id)]);
               setEditing(null);
+              if (attachProofAfterSave) {
+                setAttachProofAfterSave(false);
+                setProofItem(investment);
+              }
             }}
           />
         </div>
@@ -325,7 +403,7 @@ export function PortfolioBoard({
       {items.length === 0 && (
         <Empty
           title="No records yet"
-          body={mine ? "Add a holding or a completed trade. Units can be shares, kilograms, troy ounces, or pieces." : "No investment records shared yet."}
+          body={mine ? "Add a holding, then upload a photo of the receipt. Cover names, account numbers, and addresses before it is public." : "No investment records shared yet."}
         />
       )}
       {items.map((item) => (
@@ -333,6 +411,7 @@ export function PortfolioBoard({
           <InvestmentCard
             item={item}
             mine={mine}
+            onUploadProof={() => setProofItem(item)}
             onChange={(next) => {
               if (!next) onChange(items.filter((row) => row.id !== item.id));
               else onChange(items.map((row) => (row.id === item.id ? next : row)));
@@ -347,6 +426,17 @@ export function PortfolioBoard({
           )}
         </div>
       ))}
+      {proofItem && (
+        <ProofEditor
+          busy={proofBusy}
+          error={proofError}
+          onClose={() => {
+            setProofError("");
+            setProofItem(null);
+          }}
+          onSave={uploadProof}
+        />
+      )}
     </div>
   );
 }

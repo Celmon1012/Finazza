@@ -27,6 +27,7 @@ const investmentSchema = z.object({
   quantity: z.number().positive("Quantity must be greater than zero").max(1e12),
   unit: z.string().trim().regex(unitPattern, "Enter a unit such as shares, kg, troy oz, or pieces"),
   buyPrice: z.number().min(0).max(1e12),
+  buyPriceApproximate: z.boolean().optional().default(false),
   sellPrice: z.number().min(0).max(1e12).nullable().optional(),
   priceUnit: z.string().trim().regex(unitPattern, "Enter a price unit").optional(),
   buyDate: z.string().min(4),

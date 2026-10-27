@@ -64,6 +64,18 @@ router.patch(
   }),
 );
 
+router.delete(
+  "/me/avatar",
+  wrap(async (req, res) => {
+    const previous = req.user!.avatarUrl;
+    req.user!.avatarUrl = null;
+    await req.user!.save();
+    if (previous) await deletePublicFile(previous);
+    const { meDto } = await import("../present.js");
+    res.json({ user: meDto(req.user) });
+  }),
+);
+
 router.post(
   "/me/avatar",
   upload.single("file"),

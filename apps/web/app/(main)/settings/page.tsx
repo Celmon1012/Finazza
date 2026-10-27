@@ -82,9 +82,9 @@ export default function SettingsPage() {
         <AvatarPicker
           name={user.displayName}
           url={user.avatarUrl}
-          onChange={() => {
+          onChange={(avatarUrl) => {
             refreshUser().catch(() => undefined);
-            setMessage("Photo saved");
+            setMessage(avatarUrl ? "Photo saved" : "Photo removed");
           }}
         />
       </div>

@@ -113,6 +113,7 @@ export async function investmentDto(record: any) {
     quantity: record.quantity,
     unit: record.unit,
     buyPrice: record.buyPrice,
+    buyPriceApproximate: Boolean(record.buyPriceApproximate),
     sellPrice: record.sellPrice,
     priceUnit: record.priceUnit,
     buyDate: record.buyDate,
