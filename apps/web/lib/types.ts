@@ -58,6 +58,7 @@ export type Post = {
   repostCount: number;
   liked: boolean;
   reposted: boolean;
+  bookmarked: boolean;
 };
 
 export type Proof = {

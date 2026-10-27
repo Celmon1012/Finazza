@@ -6,7 +6,7 @@ import { requireAuth } from "../auth.js";
 import { HttpError, wrap } from "../http.js";
 import { Follow, User, sameId } from "../models.js";
 import { createNotification } from "../notify.js";
-import { authorMini, postPopulate, presentPosts, profileDto } from "../present.js";
+import { authorMini, postPopulate, presentPosts, profileDto, savedPostIds } from "../present.js";
 import { Post } from "../models.js";
 import { deletePublicFile, saveUpload } from "../storage.js";
 
@@ -157,7 +157,7 @@ router.get(
       .limit(limit + 1)
       .populate(postPopulate);
     const hasMore = docs.length > limit;
-    res.json({ posts: await presentPosts(docs.slice(0, limit), String(req.user!._id)), page, hasMore });
+    res.json({ posts: await presentPosts(docs.slice(0, limit), String(req.user!._id), savedPostIds(req.user)), page, hasMore });
   }),
 );
 

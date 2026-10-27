@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Heart, ImagePlus, MessageCircle, Repeat2, Trash2 } from "lucide-react";
+import { Bookmark, Heart, ImagePlus, MessageCircle, Repeat2, Trash2 } from "lucide-react";
 import { api, mediaUrl } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import type { Post } from "@/lib/types";
@@ -68,6 +68,7 @@ export function Composer({
         repostCount: 0,
         liked: false,
         reposted: false,
+        bookmarked: false,
       },
     );
     try {
@@ -162,12 +163,13 @@ function AttachmentGrid({ files }: { files: { url: string }[] }) {
   );
 }
 
-export function PostCard({ post, onChange }: { post: Post; onChange?: () => void }) {
+export function PostCard({ post, onChange, onBookmark }: { post: Post; onChange?: () => void; onBookmark?: (bookmarked: boolean) => void }) {
   const { user } = useAuth();
   const [liked, setLiked] = useState(post.liked);
   const [likeCount, setLikeCount] = useState(post.likeCount);
   const [reposted, setReposted] = useState(post.reposted);
   const [repostCount, setRepostCount] = useState(post.repostCount);
+  const [bookmarked, setBookmarked] = useState(post.bookmarked);
   const [hidden, setHidden] = useState(false);
   const author = post.author;
 
@@ -204,6 +206,19 @@ export function PostCard({ post, onChange }: { post: Post; onChange?: () => void
     } catch {
       setReposted(previous.reposted);
       setRepostCount(previous.repostCount);
+    }
+  }
+
+  async function toggleBookmark() {
+    if (pending) return;
+    const previous = bookmarked;
+    setBookmarked(!bookmarked);
+    try {
+      const result = await api<{ bookmarked: boolean }>(`/api/posts/${post.id}/bookmark`, { method: "POST" });
+      setBookmarked(result.bookmarked);
+      onBookmark?.(result.bookmarked);
+    } catch {
+      setBookmarked(previous);
     }
   }
 
@@ -252,6 +267,14 @@ export function PostCard({ post, onChange }: { post: Post; onChange?: () => void
             </button>
             <button type="button" onClick={toggleLike} className={cn("inline-flex items-center gap-1.5 text-sm hover:text-[#ff5d73]", liked && "text-[#ff5d73]")}>
               <Heart size={16} fill={liked ? "currentColor" : "none"} /> {likeCount || ""}
+            </button>
+            <button
+              type="button"
+              onClick={toggleBookmark}
+              aria-label={bookmarked ? "Remove bookmark" : "Bookmark"}
+              className={cn("inline-flex items-center text-sm hover:text-[#c56a00]", bookmarked && "text-[#c56a00]")}
+            >
+              <Bookmark size={16} fill={bookmarked ? "currentColor" : "none"} />
             </button>
             <span className="flex items-center gap-3">
               <ReportButton targetType="post" targetId={pureRepost && post.repostOf ? post.repostOf.id : post.id} label="" />

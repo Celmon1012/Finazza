@@ -52,7 +52,11 @@ export async function profileDto(user: any, viewerId?: string) {
   };
 }
 
-export async function presentPosts(posts: any[], viewerId?: string) {
+export function savedPostIds(user: any) {
+  return new Set<string>((user?.bookmarkedPostIds || []).map((id: unknown) => String(id)));
+}
+
+export async function presentPosts(posts: any[], viewerId?: string, savedIds?: Set<string>) {
   const visible = posts.filter((post) => post && !post.deletedAt && !(post.repostOf && post.repostOf.deletedAt));
   const ids = visible.map((post) => post._id);
   const [likes, reposts] = await Promise.all([
@@ -84,6 +88,7 @@ export async function presentPosts(posts: any[], viewerId?: string) {
     repostCount: post.repostCount || 0,
     liked: liked.has(String(post._id)),
     reposted: reposted.has(String(post._id)),
+    bookmarked: Boolean(savedIds?.has(String(post._id))),
   }));
 }
 

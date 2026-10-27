@@ -160,6 +160,18 @@ async function profilesFull(ids: string[]) {
   return map;
 }
 
+function bookmarkIdsFrom(settings: any) {
+  const stored = settings?._bookmarks;
+  return Array.isArray(stored) ? stored.map(String) : [];
+}
+
+function stripBookmarkStore(settings: any) {
+  if (!settings || typeof settings !== "object") return {};
+  const rest = { ...settings };
+  delete rest._bookmarks;
+  return rest;
+}
+
 function mapUser(row: any) {
   const doc: any = {
     _id: row.id,
@@ -175,7 +187,8 @@ function mapUser(row: any) {
     role: row.role,
     suspended: Boolean(row.suspended),
     messagePrivacy: row.message_privacy || "everyone",
-    notificationSettings: { ...notificationDefaults, ...(row.notification_settings || {}) },
+    notificationSettings: { ...notificationDefaults, ...stripBookmarkStore(row.notification_settings) },
+    bookmarkedPostIds: bookmarkIdsFrom(row.notification_settings),
     blockedUserIds: row.blocked_user_ids || [],
     mutedUserIds: row.muted_user_ids || [],
     acceptedTermsAt: row.accepted_terms_at,
@@ -198,7 +211,7 @@ function mapUser(row: any) {
       role: doc.role || "user",
       suspended: Boolean(doc.suspended),
       message_privacy: doc.messagePrivacy || "everyone",
-      notification_settings: doc.notificationSettings || notificationDefaults,
+      notification_settings: { ...(doc.notificationSettings || notificationDefaults), _bookmarks: (doc.bookmarkedPostIds || []).map(String) },
       blocked_user_ids: (doc.blockedUserIds || []).map(idOf),
       muted_user_ids: (doc.mutedUserIds || []).map(idOf),
       accepted_terms_at: iso(doc.acceptedTermsAt),
@@ -441,7 +454,11 @@ async function hydratePosts(rows: any[]) {
 
 async function loadPosts(filter: any, opts: QueryOpts) {
   let query = table("posts").select("*");
-  if (filter._id) query = query.eq("id", idOf(filter._id));
+  if (filter._id?.$in) {
+    const ids = filter._id.$in.map(idOf).filter(Boolean);
+    if (!ids.length) return [];
+    query = query.in("id", ids);
+  } else if (filter._id) query = query.eq("id", idOf(filter._id));
   if (filter.deletedAt === null) query = query.is("deleted_at", null);
   if ("replyTo" in filter) query = filter.replyTo ? query.eq("reply_to", idOf(filter.replyTo)) : query.is("reply_to", null);
   if (typeof filter.author === "string" || filter.author?._id) query = query.eq("author_id", idOf(filter.author));

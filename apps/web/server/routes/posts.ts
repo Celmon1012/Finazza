@@ -5,7 +5,7 @@ import { requireAuth } from "../auth.js";
 import { HttpError, wrap } from "../http.js";
 import { Follow, Like, Post, Repost, User, sameId } from "../models.js";
 import { createNotification } from "../notify.js";
-import { authorMini, postPopulate, presentPosts } from "../present.js";
+import { authorMini, postPopulate, presentPosts, savedPostIds } from "../present.js";
 import { assertCleanText, excludedAuthorIds, extractMentions } from "../social.js";
 import { isStoredFileUrl } from "../storage.js";
 
@@ -66,7 +66,7 @@ router.get(
       .limit(limit + 1)
       .populate(postPopulate);
     const hasMore = docs.length > limit;
-    res.json({ posts: await presentPosts(docs.slice(0, limit), String(req.user!._id)), page, hasMore });
+    res.json({ posts: await presentPosts(docs.slice(0, limit), String(req.user!._id), savedPostIds(req.user)), page, hasMore });
   }),
 );
 
@@ -121,6 +121,7 @@ router.post(
         repostCount: 0,
         liked: false,
         reposted: false,
+        bookmarked: false,
       },
     });
 
@@ -162,13 +163,43 @@ router.post(
 );
 
 router.get(
+  "/bookmarks",
+  wrap(async (req, res) => {
+    const ids = (req.user!.bookmarkedPostIds || []).map(String);
+    if (!ids.length) {
+      res.json({ posts: [] });
+      return;
+    }
+    const docs = await Post.find({ _id: { $in: ids }, deletedAt: null }).populate(postPopulate);
+    const byId = new Map(docs.map((post) => [String(post._id), post]));
+    const ordered = ids.map((id: string) => byId.get(id)).filter(Boolean);
+    res.json({ posts: await presentPosts(ordered, String(req.user!._id), new Set(ids)) });
+  }),
+);
+
+router.post(
+  "/:id/bookmark",
+  wrap(async (req, res) => {
+    const post = await Post.findOne({ _id: req.params.id, deletedAt: null });
+    if (!post) throw new HttpError(404, "Post unavailable");
+    const id = String(post._id);
+    const current = (req.user!.bookmarkedPostIds || []).map(String);
+    const bookmarked = !current.includes(id);
+    req.user!.bookmarkedPostIds = bookmarked ? [id, ...current].slice(0, 200) : current.filter((item: string) => item !== id);
+    await req.user!.save();
+    res.json({ bookmarked });
+  }),
+);
+
+router.get(
   "/:id",
   wrap(async (req, res) => {
     const post = await Post.findOne({ _id: req.params.id, deletedAt: null }).populate(postPopulate);
     if (!post) throw new HttpError(404, "Post unavailable");
     const replies = await Post.find({ replyTo: post._id, deletedAt: null }).sort({ createdAt: 1 }).limit(50).populate(postPopulate);
-    const [dto] = await presentPosts([post], String(req.user!._id));
-    res.json({ post: dto, replies: await presentPosts(replies, String(req.user!._id)) });
+    const saved = savedPostIds(req.user);
+    const [dto] = await presentPosts([post], String(req.user!._id), saved);
+    res.json({ post: dto, replies: await presentPosts(replies, String(req.user!._id), saved) });
   }),
 );
 

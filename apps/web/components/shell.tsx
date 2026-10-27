@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Bell, Compass, Home, LogOut, MessageCircle, PieChart, Settings, SquarePen } from "lucide-react";
+import { Bell, Bookmark, Compass, Home, LogOut, MessageCircle, PieChart, Settings, SquarePen } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import type { Conversation, Investment } from "@/lib/types";
@@ -14,6 +14,7 @@ import { Avatar, Spinner } from "./ui";
 const links = [
   { href: "/home", label: "Home", icon: Home },
   { href: "/explore", label: "Explore", icon: Compass },
+  { href: "/bookmarks", label: "Bookmarks", icon: Bookmark },
   { href: "/chat", label: "Chatrooms", icon: MessageCircle, badge: "messages" as const },
   { href: "/notifications", label: "Notifications", icon: Bell, badge: "notifications" as const },
   { href: "/portfolio", label: "Portfolio", icon: PieChart },
@@ -97,6 +98,7 @@ function AccountSheet({ onClose }: { onClose: () => void }) {
   const { user, logout } = useAuth();
   const router = useRouter();
   const rows = [
+    { href: "/bookmarks", label: "Bookmarks", hint: "Posts you saved", icon: Bookmark },
     { href: user?.username ? `/u/${user.username}?tab=investment` : "/portfolio", label: "Portfolio", hint: "On your profile", icon: PieChart },
     { href: "/settings", label: "Settings", hint: "Profile, privacy, and password", icon: Settings },
     ...(user?.role === "admin" ? [{ href: "/admin", label: "Admin", hint: "Moderation", icon: Settings }] : []),

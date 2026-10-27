@@ -6,7 +6,7 @@ import { requireAdmin, requireAuth } from "../auth.js";
 import { HttpError, wrap } from "../http.js";
 import { Conversation, Message, Notification, Post, Proof, Report, User, sameId } from "../models.js";
 import { createNotification } from "../notify.js";
-import { authorMini, notificationDto, postPopulate, presentPosts } from "../present.js";
+import { authorMini, notificationDto, postPopulate, presentPosts, savedPostIds } from "../present.js";
 import { escapeRegex } from "../social.js";
 import { saveUpload } from "../storage.js";
 
@@ -113,7 +113,7 @@ router.get(
     ]);
     res.json({
       users: users.map(authorMini),
-      posts: await presentPosts(posts, String(req.user!._id)),
+      posts: await presentPosts(posts, String(req.user!._id), savedPostIds(req.user)),
     });
   }),
 );
