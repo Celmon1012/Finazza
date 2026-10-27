@@ -23,7 +23,7 @@ function ProfileScreen() {
   const params = useParams<{ username: string }>();
   const search = useSearchParams();
   const username = params?.username ?? "";
-  const requested = search.get("tab");
+  const requested = search?.get("tab");
   const tab = requested === "investment" || requested === "portfolio" ? "investment" : requested === "profile" ? "profile" : "posts";
   const { user, refreshUser } = useAuth();
   const router = useRouter();
