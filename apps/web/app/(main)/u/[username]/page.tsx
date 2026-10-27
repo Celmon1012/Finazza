@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { PortfolioBoard } from "@/components/investments";
 import { PostCard } from "@/components/post";
 import { ReportButton } from "@/components/report-button";
@@ -12,6 +12,14 @@ import { useAuth } from "@/lib/auth";
 import type { Conversation, Investment, Post, Profile } from "@/lib/types";
 
 export default function ProfilePage() {
+  return (
+    <Suspense fallback={<Spinner />}>
+      <ProfileScreen />
+    </Suspense>
+  );
+}
+
+function ProfileScreen() {
   const params = useParams<{ username: string }>();
   const search = useSearchParams();
   const username = params?.username ?? "";
