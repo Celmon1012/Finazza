@@ -3,6 +3,7 @@ import path from "path";
 import { randomUUID } from "crypto";
 import { PDFDocument } from "pdf-lib";
 import { config } from "./config.js";
+import { sb } from "./supabase.js";
 
 async function loadSharp() {
   const mod = await import("sharp");
@@ -15,11 +16,36 @@ export async function ensureUploadDir() {
   await fs.mkdir(config.uploadDir, { recursive: true });
 }
 
+const BUCKET = "finazza-uploads";
+
 function publicUrl(filename: string) {
   return `/uploads/${filename}`;
 }
 
-async function writeBuffer(filename: string, buffer: Buffer) {
+let bucketReady: Promise<void> | null = null;
+
+function ensureBucket() {
+  if (!bucketReady) {
+    bucketReady = (async () => {
+      const existing = await sb().storage.getBucket(BUCKET);
+      if (!existing.error) return;
+      const created = await sb().storage.createBucket(BUCKET, { public: true });
+      if (created.error && !/already exists/i.test(created.error.message)) {
+        bucketReady = null;
+        throw new Error(created.error.message);
+      }
+    })();
+  }
+  return bucketReady;
+}
+
+async function writeBuffer(filename: string, buffer: Buffer, mimeType: string) {
+  if (config.supabaseUrl && config.supabaseSecretKey) {
+    await ensureBucket();
+    const { error } = await sb().storage.from(BUCKET).upload(filename, buffer, { contentType: mimeType, upsert: false });
+    if (error) throw new Error(error.message);
+    return sb().storage.from(BUCKET).getPublicUrl(filename).data.publicUrl;
+  }
   await ensureUploadDir();
   await fs.writeFile(path.join(config.uploadDir, filename), buffer);
   return publicUrl(filename);
@@ -38,7 +64,7 @@ export async function saveImage(buffer: Buffer) {
     .webp({ quality: 82 })
     .toBuffer();
   const filename = `${randomUUID()}.webp`;
-  return { url: await writeBuffer(filename, out), mimeType: "image/webp" };
+  return { url: await writeBuffer(filename, out, "image/webp"), mimeType: "image/webp" };
 }
 
 /** Copy PDF pages into a new document so source metadata is not kept. */
@@ -53,7 +79,7 @@ export async function savePdf(buffer: Buffer) {
   out.setCreator("");
   const bytes = await out.save();
   const filename = `${randomUUID()}.pdf`;
-  return { url: await writeBuffer(filename, Buffer.from(bytes)), mimeType: "application/pdf" };
+  return { url: await writeBuffer(filename, Buffer.from(bytes), "application/pdf"), mimeType: "application/pdf" };
 }
 
 export async function saveUpload(buffer: Buffer, mimeType: string, allowPdf: boolean) {
@@ -69,7 +95,15 @@ export async function saveSvgImage(svg: string) {
 }
 
 export async function deletePublicFile(url: string | null | undefined) {
-  if (!url || !url.startsWith("/uploads/")) return;
+  if (!url) return;
+  const marker = `/storage/v1/object/public/${BUCKET}/`;
+  const remote = url.indexOf(marker);
+  if (remote !== -1) {
+    const filename = decodeURIComponent(url.slice(remote + marker.length).split("?")[0]);
+    await sb().storage.from(BUCKET).remove([filename]);
+    return;
+  }
+  if (!url.startsWith("/uploads/")) return;
   const filename = path.basename(url);
   await fs.unlink(path.join(config.uploadDir, filename)).catch(() => undefined);
 }

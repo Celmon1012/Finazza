@@ -21,7 +21,7 @@ export default function PortfolioPage() {
 
   return (
     <div>
-      <PageHeader title="Portfolio" subtitle="Manual trades and holdings" />
+      <PageHeader title="Portfolio" subtitle="Holdings, trades, and redacted proof" />
       <div className="flex items-center justify-between px-4 py-3">
         <p className="max-w-md text-xs leading-5 text-neutral-500">{DISCLAIMER}</p>
         <Button onClick={() => setEditing("new")}>Add</Button>

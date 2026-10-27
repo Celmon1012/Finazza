@@ -4,6 +4,7 @@ import { useState } from "react";
 import { api, mediaUrl } from "@/lib/api";
 import type { Investment } from "@/lib/types";
 import { dateInput, money, percent } from "@/lib/utils";
+import { ProofEditor } from "./proof-editor";
 import { ReportButton } from "./report-button";
 import { Button, Field, inputClass } from "./ui";
 
@@ -190,16 +191,25 @@ export function InvestmentCard({
   mine?: boolean;
   onChange?: (next: Investment | null) => void;
 }) {
-  const [checks, setChecks] = useState([false, false, false]);
+  const [editingProof, setEditingProof] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const ready = checks.every(Boolean);
 
   async function upload(file: File) {
+    setBusy(true);
+    setError("");
     const form = new FormData();
     form.append("file", file);
     form.append("redactionConfirmed", "true");
-    const result = await api<{ investment: Investment }>(`/api/investments/${item.id}/proof`, { method: "POST", body: form });
-    onChange?.(result.investment);
+    try {
+      const result = await api<{ investment: Investment }>(`/api/investments/${item.id}/proof`, { method: "POST", body: form });
+      onChange?.(result.investment);
+      setEditingProof(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function removeProof() {
@@ -260,41 +270,17 @@ export function InvestmentCard({
             </div>
           </div>
         ) : (
-          <p className="text-sm text-neutral-600">No proof uploaded.</p>
+          <p className="text-sm text-neutral-600">No proof uploaded. Add a receipt or photo after covering the sensitive details.</p>
         )}
         {mine && (
-          <div className="mt-3 space-y-2 text-sm">
-            <p className="text-neutral-600">Before you upload, remove:</p>
-            {["Real names", "Account numbers", "Addresses"].map((label, index) => (
-              <label key={label} className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={checks[index]}
-                  onChange={(event) =>
-                    setChecks((current) => current.map((value, itemIndex) => (itemIndex === index ? event.target.checked : value)))
-                  }
-                />
-                {label}
-              </label>
-            ))}
-            <label className={ready ? "inline-flex cursor-pointer text-[#c56a00]" : "inline-flex cursor-not-allowed text-neutral-500"}>
+          <div className="mt-3">
+            <Button type="button" onClick={() => setEditingProof(true)}>
               {item.proof ? "Replace proof" : "Upload proof"}
-              <input
-                type="file"
-                accept="image/png,image/jpeg,image/webp,application/pdf"
-                className="hidden"
-                disabled={!ready}
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (!file) return;
-                  setError("");
-                  upload(file).catch((err) => setError(err instanceof Error ? err.message : "Upload failed"));
-                }}
-              />
-            </label>
-            {error && <p className="text-[#ff5d73]">{error}</p>}
+            </Button>
+            {error && !editingProof && <p className="mt-2 text-sm text-[#ff5d73]">{error}</p>}
           </div>
         )}
+        {editingProof && <ProofEditor busy={busy} error={error} onClose={() => setEditingProof(false)} onSave={upload} />}
       </div>
       {mine && (
         <button type="button" className="mt-3 text-xs text-[#ff5d73]" onClick={removeRecord}>
