@@ -186,53 +186,27 @@ export default function LandingPage() {
       <footer id="footer" className="border-t border-[#f0e6d8] bg-white">
         <div className="mx-auto grid max-w-[1200px] gap-8 px-5 py-14 sm:px-8 lg:grid-cols-[0.9fr_1.1fr]">
           <div className="rounded-[28px] border border-[#f0e6d8] p-6 sm:p-8">
-            <p className="text-xs uppercase tracking-[0.18em] text-[#a16207]">Chief executive officer</p>
+            <p className="text-xs uppercase tracking-[0.18em] text-[#a16207]">Co-founder</p>
             <div className="mt-5 flex items-center gap-4">
-              <span className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-[#fff1dc] font-serif text-2xl text-[#a16207]">MH</span>
+              <span className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-[#fff1dc] font-serif text-2xl text-[#a16207]">WT</span>
               <div>
-                <h2 className="font-serif text-3xl">Marcus Hale</h2>
-                <p className="text-sm text-[#6b6258]">Chief Executive Officer, FINAZZA</p>
+                <h2 className="font-serif text-3xl">Winson Tse</h2>
+                <p className="text-sm text-[#6b6258]">Co-founder of Finazza</p>
               </div>
             </div>
             <p className="mt-5 text-sm leading-6 text-[#6b6258]">
-              Marcus started FINAZZA in New York to give investors a public place for handwritten positions, receipts, and rooms that are not limited to listed stocks. He leads product, community, and the rule that proof is never marked verified.
+              Winson Tse started FINAZZA in Hong Kong to give investors a public place for discussions about stocks, derivatives, commodities and collectibles. He leads the development of FINAZZA with his team of professional programmers.
             </p>
-            <dl className="mt-6 space-y-3 text-sm">
-              {[
-                ["Office", "450 Park Avenue, 18th Floor, New York, NY 10022"],
-                ["Country", "United States"],
-                ["Phone", "+1 (212) 555-0148"],
-                ["Email", "marcus.hale@finazza.dev"],
-                ["Appointed", "March 2024"],
-              ].map(([label, value], index, rows) => (
-                <div key={label} className={`grid gap-1 pb-3 sm:flex sm:justify-between sm:gap-4 ${index < rows.length - 1 ? "border-b border-[#f3ece3]" : ""}`}>
-                  <dt className="text-[#8a7f74]">{label}</dt>
-                  <dd className="sm:text-right">
-                    {label === "Phone" ? (
-                      <a href="tel:+12125550148" className="hover:text-[#a16207]">
-                        {value}
-                      </a>
-                    ) : label === "Email" ? (
-                      <a href="mailto:marcus.hale@finazza.dev" className="hover:text-[#a16207]">
-                        {value}
-                      </a>
-                    ) : (
-                      value
-                    )}
-                  </dd>
-                </div>
-              ))}
-            </dl>
           </div>
 
           <div className="overflow-hidden rounded-[28px] border border-[#f0e6d8]">
             <div className="flex items-end justify-between gap-4 px-6 py-5">
               <div>
-                <p className="text-xs uppercase tracking-[0.18em] text-[#a16207]">Office map</p>
-                <h2 className="mt-1 font-serif text-3xl">New York, United States</h2>
+                <p className="text-xs uppercase tracking-[0.18em] text-[#a16207]">Where FINAZZA started</p>
+                <h2 className="mt-1 font-serif text-3xl">Hong Kong</h2>
               </div>
               <a
-                href="https://www.openstreetmap.org/?mlat=40.7630&mlon=-73.9712#map=15/40.7630/-73.9712"
+                href="https://www.openstreetmap.org/#map=11/22.3193/114.1694"
                 target="_blank"
                 rel="noreferrer"
                 className="shrink-0 text-sm text-[#a16207]"
@@ -241,8 +215,8 @@ export default function LandingPage() {
               </a>
             </div>
             <iframe
-              title="Map of the FINAZZA office in Midtown Manhattan, New York"
-              src="https://www.openstreetmap.org/export/embed.html?bbox=-74.000%2C40.748%2C-73.940%2C40.778&layer=mapnik&marker=40.7630%2C-73.9712"
+              title="Map of Hong Kong, where FINAZZA started"
+              src="https://www.openstreetmap.org/export/embed.html?bbox=113.825%2C22.190%2C114.430%2C22.570&layer=mapnik"
               className="h-80 w-full border-0"
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
