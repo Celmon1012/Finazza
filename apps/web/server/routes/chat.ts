@@ -161,7 +161,16 @@ router.get(
     assertMember(convo, req.user!._id);
     const limit = 50;
     const before = req.query.before ? new Date(String(req.query.before)) : null;
+    const after = req.query.after ? new Date(String(req.query.after)) : null;
     const query: Record<string, unknown> = { conversation: convo._id };
+    if (after && !Number.isNaN(after.getTime())) {
+      const docs = await Message.find({ conversation: convo._id, createdAt: { $gt: after } })
+        .sort({ createdAt: 1 })
+        .limit(limit)
+        .populate("author", "username displayName avatarUrl");
+      res.json({ messages: docs.map(messageDto), hasMore: false });
+      return;
+    }
     if (before && !Number.isNaN(before.getTime())) query.createdAt = { $lt: before };
     const docs = await Message.find(query)
       .sort({ createdAt: -1 })

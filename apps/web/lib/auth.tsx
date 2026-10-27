@@ -79,6 +79,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("finazza:unauthorized", onUnauthorized);
   }, []);
 
+  useEffect(() => {
+    if (!user) return;
+    const tick = () => {
+      if (document.visibilityState === "visible") refreshBadges().catch(() => undefined);
+    };
+    const timer = window.setInterval(tick, 15000);
+    document.addEventListener("visibilitychange", tick);
+    window.addEventListener("focus", tick);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", tick);
+      window.removeEventListener("focus", tick);
+    };
+  }, [user?.id]);
+
   const value = useMemo<AuthState>(
     () => ({
       user,

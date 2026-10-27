@@ -50,18 +50,19 @@ router.get(
       Conversation.find({ type: { $in: ["dm", "group"] }, "members.user": req.user!._id }).select("_id"),
     ]);
     const { ReadState, Message } = await import("../models.js");
-    let messages = 0;
-    for (const convo of conversations) {
-      const state = await ReadState.findOne({ user: req.user!._id, conversation: convo._id });
-      const since = state?.lastReadAt || new Date(0);
-      messages += await Message.countDocuments({
-        conversation: convo._id,
-        createdAt: { $gt: since },
-        author: { $ne: req.user!._id },
-        deleted: false,
-      });
-    }
-    res.json({ notifications, messages });
+    const counts = await Promise.all(
+      conversations.map(async (convo: any) => {
+        const state = await ReadState.findOne({ user: req.user!._id, conversation: convo._id });
+        const since = state?.lastReadAt || new Date(0);
+        return Message.countDocuments({
+          conversation: convo._id,
+          createdAt: { $gt: since },
+          author: { $ne: req.user!._id },
+          deleted: false,
+        });
+      }),
+    );
+    res.json({ notifications, messages: counts.reduce((sum, count) => sum + count, 0) });
   }),
 );
 
