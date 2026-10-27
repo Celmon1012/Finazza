@@ -51,7 +51,7 @@ function NameHelp() {
           <p className="mt-3">
             A <span className="font-semibold text-neutral-950">display name</span> is the friendly name shown in bold, like James Zhang. It does not have to be unique, so it can include spaces and emoji. You can change it later in Settings. It can be up to 40 characters.
           </p>
-          <p className="mt-3 text-neutral-500">On X, “Elon Musk” is the display name and @elonmusk is the username.</p>
+          <p className="mt-3 text-neutral-500">For example, Alex Morgan is the display name and @alex is the username.</p>
         </div>
       )}
     </div>
