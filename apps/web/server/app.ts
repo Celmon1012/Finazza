@@ -91,6 +91,10 @@ export function createApp() {
       return;
     }
     console.error(error);
+    if (error instanceof Error && /fetch failed|ECONNRESET|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|socket hang up|network/i.test(error.message)) {
+      res.status(503).json({ error: "The server could not reach the database. Please try again." });
+      return;
+    }
     res.status(500).json({ error: "Something went wrong" });
   });
 

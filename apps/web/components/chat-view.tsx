@@ -132,8 +132,8 @@ export function ChatView({ activeId }: { activeId?: string }) {
   const showThread = Boolean(activeId);
 
   return (
-    <div className="flex min-h-screen">
-      <section className={cn("w-full border-neutral-200 md:w-[280px] md:border-r", showThread && "hidden md:block")}>
+    <div className={cn("flex", showThread ? "h-[calc(100dvh-4.75rem-env(safe-area-inset-bottom))] lg:mb-0 lg:h-dvh -mb-24" : "min-h-screen")}>
+      <section className={cn("w-full overflow-y-auto border-neutral-200 md:w-[280px] md:border-r", showThread && "hidden md:block")}>
         <div className="sticky top-0 z-10 bg-white/95 px-3 py-3 backdrop-blur">
           <div className="mb-3 flex gap-2">
             <button type="button" className={cn("rounded-full px-3 py-1.5 text-sm", scope === "topic" && "bg-neutral-100")} onClick={() => setScope("topic")}>
@@ -185,7 +185,7 @@ export function ChatView({ activeId }: { activeId?: string }) {
         {error && <p className="px-4 py-3 text-sm text-[#ff5d73]">{error}</p>}
       </section>
 
-      <section className={cn("flex min-h-screen flex-1 flex-col", !showThread && "hidden md:flex")}>
+      <section className={cn("flex min-h-0 flex-1 flex-col", !showThread && "hidden md:flex")}>
         {!activeId && <Empty title="Pick a room" body="Topic rooms are public. Direct messages and groups stay in the inbox." />}
         {activeId && (
           <>
@@ -213,14 +213,14 @@ export function ChatView({ activeId }: { activeId?: string }) {
                 </button>
               )}
             </header>
-            <div className="flex-1 space-y-4 px-4 py-4">
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4">
               {messages.map((message) => (
                 <MessageRow key={message.id} message={message} mine={message.author?.id === user?.id} />
               ))}
               <div ref={bottom} />
             </div>
             <form
-              className="sticky bottom-0 flex items-end gap-2 border-t border-neutral-200 bg-white p-3"
+              className="flex shrink-0 items-end gap-2 border-t border-neutral-200 bg-white p-3"
               onSubmit={(event) => {
                 event.preventDefault();
                 send().catch((err) => setError(err instanceof Error ? err.message : "Could not send"));
