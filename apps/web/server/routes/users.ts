@@ -69,7 +69,13 @@ router.post(
   upload.single("file"),
   wrap(async (req, res) => {
     if (!req.file) throw new HttpError(400, "Choose a photo");
-    const saved = await saveUpload(req.file.buffer, req.file.mimetype, false);
+    let saved;
+    try {
+      saved = await saveUpload(req.file.buffer, req.file.mimetype || "", false);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not upload the photo";
+      throw new HttpError(400, message.slice(0, 200));
+    }
     const previous = req.user!.avatarUrl;
     req.user!.avatarUrl = saved.url;
     await req.user!.save();

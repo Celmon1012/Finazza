@@ -82,8 +82,8 @@ export function createApp() {
       res.status(error.status).json({ error: error.message });
       return;
     }
-    if (error instanceof Error && /image|pdf|upload/i.test(error.message)) {
-      res.status(400).json({ error: error.message });
+    if (error instanceof Error && /image|pdf|upload|sharp|bucket|storage|heif|photo/i.test(error.message)) {
+      res.status(400).json({ error: error.message.slice(0, 200) });
       return;
     }
     console.error(error);

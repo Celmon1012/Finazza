@@ -10,7 +10,27 @@ async function loadSharp() {
   return mod.default;
 }
 
-const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+const IMAGE_TYPES = new Set(["image/jpeg", "image/jpg", "image/pjpeg", "image/png", "image/webp", "image/gif", "image/heic", "image/heif"]);
+
+function sniffImage(buffer: Buffer) {
+  if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+    return { ext: "jpg", mime: "image/jpeg" };
+  }
+  if (buffer.length >= 8 && buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) {
+    return { ext: "png", mime: "image/png" };
+  }
+  if (buffer.length >= 12 && buffer.subarray(0, 4).toString() === "RIFF" && buffer.subarray(8, 12).toString() === "WEBP") {
+    return { ext: "webp", mime: "image/webp" };
+  }
+  if (buffer.length >= 6 && (buffer.subarray(0, 6).toString() === "GIF87a" || buffer.subarray(0, 6).toString() === "GIF89a")) {
+    return { ext: "gif", mime: "image/gif" };
+  }
+  return null;
+}
+
+function isHeic(buffer: Buffer) {
+  return buffer.length >= 12 && buffer.subarray(4, 8).toString() === "ftyp" && /heic|heif|mif1/i.test(buffer.subarray(8, 16).toString());
+}
 
 export async function ensureUploadDir() {
   await fs.mkdir(config.uploadDir, { recursive: true });
@@ -51,8 +71,7 @@ async function writeBuffer(filename: string, buffer: Buffer, mimeType: string) {
   return publicUrl(filename);
 }
 
-/** Re-encode images so EXIF and other metadata are dropped. */
-export async function saveImage(buffer: Buffer) {
+async function saveImageWithSharp(buffer: Buffer) {
   const sharp = await loadSharp();
   const image = sharp(buffer, { failOn: "error" }).rotate();
   const meta = await image.metadata();
@@ -65,6 +84,19 @@ export async function saveImage(buffer: Buffer) {
     .toBuffer();
   const filename = `${randomUUID()}.webp`;
   return { url: await writeBuffer(filename, out, "image/webp"), mimeType: "image/webp" };
+}
+
+/** Re-encode images so EXIF and other metadata are dropped. */
+export async function saveImage(buffer: Buffer) {
+  try {
+    return await saveImageWithSharp(buffer);
+  } catch (error) {
+    if (isHeic(buffer)) throw new Error("Use a JPEG or PNG photo");
+    const kind = sniffImage(buffer);
+    if (!kind) throw error;
+    const filename = `${randomUUID()}.${kind.ext}`;
+    return { url: await writeBuffer(filename, buffer, kind.mime), mimeType: kind.mime };
+  }
 }
 
 /** Copy PDF pages into a new document so source metadata is not kept. */
@@ -83,8 +115,9 @@ export async function savePdf(buffer: Buffer) {
 }
 
 export async function saveUpload(buffer: Buffer, mimeType: string, allowPdf: boolean) {
-  if (IMAGE_TYPES.has(mimeType)) return saveImage(buffer);
-  if (allowPdf && mimeType === "application/pdf") return savePdf(buffer);
+  const mime = mimeType === "image/jpg" || mimeType === "image/pjpeg" ? "image/jpeg" : mimeType;
+  if (IMAGE_TYPES.has(mime) || sniffImage(buffer) || isHeic(buffer)) return saveImage(buffer);
+  if (allowPdf && mime === "application/pdf") return savePdf(buffer);
   throw new Error(allowPdf ? "Upload an image or PDF" : "Upload an image");
 }
 
