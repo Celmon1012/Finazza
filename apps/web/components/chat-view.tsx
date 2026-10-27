@@ -23,6 +23,7 @@ export function ChatView({ activeId }: { activeId?: string }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [composerMode, setComposerMode] = useState<"dm" | "group" | null>(null);
+  const [messagesReady, setMessagesReady] = useState(false);
   const bottom = useRef<HTMLDivElement | null>(null);
 
   async function loadLists() {
@@ -48,9 +49,13 @@ export function ChatView({ activeId }: { activeId?: string }) {
       return;
     }
     let cancelled = false;
+    setMessagesReady(false);
     api<{ messages: ChatMessage[] }>(`/api/conversations/${activeId}/messages`)
       .then((data) => {
-        if (!cancelled) setMessages(data.messages);
+        if (!cancelled) {
+          setMessages(data.messages);
+          setMessagesReady(true);
+        }
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Could not open the chat"));
     api(`/api/conversations/${activeId}/read`, { method: "POST" }).then(() => refreshBadges()).catch(() => undefined);
@@ -88,6 +93,12 @@ export function ChatView({ activeId }: { activeId?: string }) {
     });
     setMessages((current) => (current.some((item) => item.id === result.message.id) ? current : [...current, result.message]));
     loadLists().catch(() => undefined);
+  }
+
+  async function removeEmpty(id: string) {
+    await api(`/api/conversations/${id}`, { method: "DELETE" });
+    setInbox((current) => current.filter((item) => item.id !== id));
+    if (activeId === id) router.push("/chat");
   }
 
   async function uploadImage(file: File) {
@@ -128,14 +139,25 @@ export function ChatView({ activeId }: { activeId?: string }) {
         ) : (
           <ul>
             {list.map((item) => (
-              <li key={item.id}>
-                <Link href={`/chat/${item.id}`} className={cn("block border-b border-neutral-200 px-4 py-3 hover:bg-neutral-50", item.id === activeId && "bg-neutral-100")}>
+              <li key={item.id} className="flex items-stretch border-b border-neutral-200">
+                <Link href={`/chat/${item.id}`} className={cn("block min-w-0 flex-1 px-4 py-3 hover:bg-neutral-50", item.id === activeId && "bg-neutral-100")}>
                   <div className="flex items-center justify-between gap-2">
                     <span className="truncate font-semibold">{item.type === "topic" ? `#${item.slug}` : item.name}</span>
                     {item.unreadCount > 0 && <span className="rounded-full bg-[#ff7a18] px-1.5 text-xs text-black">{item.unreadCount}</span>}
                   </div>
                   <p className="truncate text-sm text-neutral-500">{item.lastMessageText || item.description || "No messages yet"}</p>
                 </Link>
+                {item.type === "dm" && !item.lastMessageText && (
+                  <button
+                    type="button"
+                    className="px-3 text-xs text-[#ff5d73]"
+                    onClick={() => {
+                      removeEmpty(item.id).catch((err) => setError(err instanceof Error ? err.message : "Could not delete the inbox"));
+                    }}
+                  >
+                    Delete
+                  </button>
+                )}
               </li>
             ))}
           </ul>
@@ -159,6 +181,17 @@ export function ChatView({ activeId }: { activeId?: string }) {
                 </p>
               </div>
               {active?.type === "group" && user && <GroupActions conversation={active} onChanged={() => router.push("/chat")} />}
+              {active?.type === "dm" && messagesReady && messages.length === 0 && (
+                <button
+                  type="button"
+                  className="text-xs text-[#ff5d73]"
+                  onClick={() => {
+                    removeEmpty(active.id).catch((err) => setError(err instanceof Error ? err.message : "Could not delete the inbox"));
+                  }}
+                >
+                  Delete inbox
+                </button>
+              )}
             </header>
             <div className="flex-1 space-y-4 px-4 py-4">
               {messages.map((message) => (

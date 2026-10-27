@@ -294,6 +294,19 @@ router.post(
 );
 
 router.delete(
+  "/:id",
+  wrap(async (req, res) => {
+    const convo = await loadConversation(req.params.id);
+    if (convo.type !== "dm") throw new HttpError(400, "Only an unused direct message can be deleted");
+    assertMember(convo, req.user!._id);
+    const count = await Message.countDocuments({ conversation: convo._id });
+    if (count > 0) throw new HttpError(400, "This conversation already has messages");
+    await convo.deleteOne();
+    res.json({ ok: true });
+  }),
+);
+
+router.delete(
   "/:id/members/:username",
   wrap(async (req, res) => {
     const convo = await loadConversation(req.params.id);

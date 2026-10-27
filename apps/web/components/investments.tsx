@@ -3,10 +3,10 @@
 import { useState } from "react";
 import { api, mediaUrl } from "@/lib/api";
 import type { Investment } from "@/lib/types";
-import { dateInput, money, percent } from "@/lib/utils";
+import { dateInput, DISCLAIMER, money, percent } from "@/lib/utils";
 import { ProofEditor } from "./proof-editor";
 import { ReportButton } from "./report-button";
-import { Button, Field, inputClass } from "./ui";
+import { Button, Empty, Field, inputClass } from "./ui";
 
 const classes = [
   ["stock", "Stock"],
@@ -288,5 +288,65 @@ export function InvestmentCard({
         </button>
       )}
     </article>
+  );
+}
+
+export function PortfolioBoard({
+  items,
+  mine,
+  onChange,
+}: {
+  items: Investment[];
+  mine: boolean;
+  onChange: (items: Investment[]) => void;
+}) {
+  const [editing, setEditing] = useState<Investment | null | "new">(null);
+
+  return (
+    <div>
+      {mine && (
+        <div className="flex items-center justify-between gap-3 px-4 py-3">
+          <p className="max-w-md text-xs leading-5 text-neutral-500">{DISCLAIMER}</p>
+          <Button onClick={() => setEditing(editing === "new" ? null : "new")}>Add</Button>
+        </div>
+      )}
+      {mine && editing && (
+        <div className="px-4 pb-4">
+          <InvestmentEditor
+            initial={editing === "new" ? null : editing}
+            onCancel={() => setEditing(null)}
+            onSaved={(investment) => {
+              onChange([investment, ...items.filter((item) => item.id !== investment.id)]);
+              setEditing(null);
+            }}
+          />
+        </div>
+      )}
+      {items.length === 0 && (
+        <Empty
+          title="No records yet"
+          body={mine ? "Add a holding or a completed trade. Units can be shares, kilograms, troy ounces, or pieces." : "No investment records shared yet."}
+        />
+      )}
+      {items.map((item) => (
+        <div key={item.id}>
+          <InvestmentCard
+            item={item}
+            mine={mine}
+            onChange={(next) => {
+              if (!next) onChange(items.filter((row) => row.id !== item.id));
+              else onChange(items.map((row) => (row.id === item.id ? next : row)));
+            }}
+          />
+          {mine && (
+            <div className="px-4 pb-3">
+              <button type="button" className="text-xs text-[#c56a00]" onClick={() => setEditing(item)}>
+                Edit record
+              </button>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
   );
 }

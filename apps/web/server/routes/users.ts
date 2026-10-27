@@ -1,5 +1,6 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
+import multer from "multer";
 import { z } from "zod";
 import { requireAuth } from "../auth.js";
 import { HttpError, wrap } from "../http.js";
@@ -7,10 +8,16 @@ import { Follow, User, sameId } from "../models.js";
 import { createNotification } from "../notify.js";
 import { authorMini, postPopulate, presentPosts, profileDto } from "../present.js";
 import { Post } from "../models.js";
+import { deletePublicFile, saveUpload } from "../storage.js";
 
 const router = Router();
 
 router.use(requireAuth);
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 8 * 1024 * 1024 },
+});
 
 router.patch(
   "/me",
@@ -54,6 +61,21 @@ router.patch(
     await user.save();
     const { meDto } = await import("../present.js");
     res.json({ user: meDto(user) });
+  }),
+);
+
+router.post(
+  "/me/avatar",
+  upload.single("file"),
+  wrap(async (req, res) => {
+    if (!req.file) throw new HttpError(400, "Choose a photo");
+    const saved = await saveUpload(req.file.buffer, req.file.mimetype, false);
+    const previous = req.user!.avatarUrl;
+    req.user!.avatarUrl = saved.url;
+    await req.user!.save();
+    if (previous && previous !== saved.url) await deletePublicFile(previous);
+    const { meDto } = await import("../present.js");
+    res.json({ user: meDto(req.user) });
   }),
 );
 

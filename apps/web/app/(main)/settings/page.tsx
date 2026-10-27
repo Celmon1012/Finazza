@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/shell";
-import { Button, Field, inputClass } from "@/components/ui";
+import { Button, Field, AvatarPicker, inputClass } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import type { Me, PublicUser } from "@/lib/types";
@@ -77,6 +77,17 @@ export default function SettingsPage() {
   return (
     <div>
       <PageHeader title="Settings" />
+      <div className="border-b border-neutral-200 px-4 py-4">
+        <h2 className="mb-3 font-semibold">Profile photo</h2>
+        <AvatarPicker
+          name={user.displayName}
+          url={user.avatarUrl}
+          onChange={() => {
+            refreshUser().catch(() => undefined);
+            setMessage("Photo saved");
+          }}
+        />
+      </div>
       <form className="space-y-3 px-4 py-4" onSubmit={saveProfile}>
         <Field label="Display name">
           <input className={inputClass} value={profile.displayName} onChange={(event) => setProfile({ ...profile, displayName: event.target.value })} />

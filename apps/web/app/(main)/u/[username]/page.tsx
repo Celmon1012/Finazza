@@ -1,24 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { InvestmentCard } from "@/components/investments";
+import { PortfolioBoard } from "@/components/investments";
 import { PostCard } from "@/components/post";
 import { ReportButton } from "@/components/report-button";
-import { Avatar, Button, Spinner } from "@/components/ui";
+import { Avatar, AvatarPicker, Button, Spinner } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import type { Conversation, Investment, Post, Profile } from "@/lib/types";
-import { useRouter } from "next/navigation";
 
 export default function ProfilePage() {
   const params = useParams<{ username: string }>();
   const username = params?.username ?? "";
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [tab, setTab] = useState<"posts" | "investments">("posts");
   const [posts, setPosts] = useState<Post[]>([]);
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [error, setError] = useState("");
@@ -36,8 +34,14 @@ export default function ProfilePage() {
 
   useEffect(() => {
     setError("");
+    setProfile(null);
     load().catch((err) => setError(err instanceof Error ? err.message : "Profile unavailable"));
   }, [username]);
+
+  useEffect(() => {
+    if (!profile || window.location.hash !== "#portfolio") return;
+    document.getElementById("portfolio")?.scrollIntoView({ block: "start" });
+  }, [profile]);
 
   async function follow() {
     const result = await api<{ following: boolean }>(`/api/users/${username}/follow`, { method: "POST" });
@@ -52,7 +56,7 @@ export default function ProfilePage() {
   async function message() {
     const result = await api<{ conversation: Conversation }>("/api/conversations", {
       method: "POST",
-      body: JSON.stringify({ type: "dm", username: username }),
+      body: JSON.stringify({ type: "dm", username }),
     });
     router.push(`/chat/${result.conversation.id}`);
   }
@@ -65,7 +69,19 @@ export default function ProfilePage() {
     <div>
       <header className="border-b border-neutral-200 px-4 py-5">
         <div className="flex items-start justify-between gap-3">
-          <Avatar name={profile.displayName} url={profile.avatarUrl} size={72} />
+          {mine ? (
+            <AvatarPicker
+              name={profile.displayName}
+              url={profile.avatarUrl}
+              size={72}
+              onChange={(avatarUrl) => {
+                setProfile((current) => (current ? { ...current, avatarUrl } : current));
+                refreshUser().catch(() => undefined);
+              }}
+            />
+          ) : (
+            <Avatar name={profile.displayName} url={profile.avatarUrl} size={72} />
+          )}
           <div className="flex flex-wrap justify-end gap-2">
             {mine ? (
               <Link href="/settings" className="rounded-full border border-neutral-300 px-4 py-2 text-sm">
@@ -85,18 +101,6 @@ export default function ProfilePage() {
         </div>
         <h1 className="mt-3 text-2xl font-semibold">{profile.displayName}</h1>
         <p className="text-neutral-500">@{profile.username}</p>
-        {profile.bio && <p className="mt-3">{profile.bio}</p>}
-        <p className="mt-2 text-sm text-neutral-500">
-          {profile.location}
-          {profile.website && (
-            <>
-              {" · "}
-              <a href={profile.website} className="text-[#c56a00]" target="_blank" rel="noreferrer">
-                {profile.website.replace(/^https?:\/\//, "")}
-              </a>
-            </>
-          )}
-        </p>
         <p className="mt-3 text-sm">
           <span className="font-semibold">{profile.followingCount}</span> <span className="text-neutral-500">Following</span>
           <span className="ml-4 font-semibold">{profile.followersCount}</span> <span className="text-neutral-500">Followers</span>
@@ -113,20 +117,60 @@ export default function ProfilePage() {
           </div>
         )}
       </header>
-      <div className="flex border-b border-neutral-200">
-        {(["posts", "investments"] as const).map((item) => (
-          <button key={item} type="button" className={`flex-1 py-3 text-sm capitalize ${tab === item ? "border-b-2 border-[#ffc14d] font-semibold" : "text-neutral-500"}`} onClick={() => setTab(item)}>
-            {item}
-          </button>
-        ))}
-      </div>
-      {profile.youBlocked ? (
-        <p className="px-4 py-8 text-sm text-neutral-500">You blocked this account. Unblock to see posts and records.</p>
-      ) : tab === "posts" ? (
-        posts.map((post) => <PostCard key={post.id} post={post} />)
-      ) : (
-        investments.map((item) => <InvestmentCard key={item.id} item={item} mine={mine} />)
-      )}
+
+      <section className="border-b border-neutral-200 px-4 py-5">
+        <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-neutral-500">Personal description</h2>
+        <p className="mt-3 whitespace-pre-wrap">{profile.bio || (mine ? "No description yet. Add one from Edit profile." : "No description yet.")}</p>
+      </section>
+
+      <section className="border-b border-neutral-200 px-4 py-5">
+        <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-neutral-500">Contact information</h2>
+        <dl className="mt-3 space-y-3 text-sm">
+          {mine && (
+            <div>
+              <dt className="text-neutral-500">Email</dt>
+              <dd className="mt-0.5">{user?.email}</dd>
+              <dd className="text-xs text-neutral-500">Only you can see your email.</dd>
+            </div>
+          )}
+          <div>
+            <dt className="text-neutral-500">Location</dt>
+            <dd className="mt-0.5">{profile.location || "Not shared"}</dd>
+          </div>
+          <div>
+            <dt className="text-neutral-500">Website</dt>
+            <dd className="mt-0.5">
+              {profile.website ? (
+                <a href={profile.website} className="text-[#c56a00]" target="_blank" rel="noreferrer">
+                  {profile.website.replace(/^https?:\/\//, "")}
+                </a>
+              ) : (
+                "Not shared"
+              )}
+            </dd>
+          </div>
+        </dl>
+      </section>
+
+      <section id="portfolio" className="scroll-mt-4 border-b border-neutral-200">
+        <h2 className="px-4 pt-5 text-sm font-semibold uppercase tracking-[0.14em] text-neutral-500">Portfolio and investment experience</h2>
+        {profile.youBlocked ? (
+          <p className="px-4 py-8 text-sm text-neutral-500">You blocked this account. Unblock to see records.</p>
+        ) : (
+          <PortfolioBoard items={investments} mine={mine} onChange={setInvestments} />
+        )}
+      </section>
+
+      <section>
+        <h2 className="border-b border-neutral-200 px-4 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-neutral-500">Posts</h2>
+        {profile.youBlocked ? (
+          <p className="px-4 py-8 text-sm text-neutral-500">You blocked this account. Unblock to see posts.</p>
+        ) : posts.length === 0 ? (
+          <p className="px-4 py-8 text-sm text-neutral-500">No posts yet.</p>
+        ) : (
+          posts.map((post) => <PostCard key={post.id} post={post} />)
+        )}
+      </section>
     </div>
   );
 }

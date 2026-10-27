@@ -1,6 +1,8 @@
 "use client";
 
-import { mediaUrl } from "@/lib/api";
+import { useState } from "react";
+import { Camera } from "lucide-react";
+import { api, mediaUrl } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 export function Button({
@@ -82,6 +84,60 @@ export function Modal({
         </div>
         {children}
       </div>
+    </div>
+  );
+}
+
+export function AvatarPicker({
+  name,
+  url,
+  size = 72,
+  onChange,
+}: {
+  name: string;
+  url?: string | null;
+  size?: number;
+  onChange: (avatarUrl: string) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function pick(file: File) {
+    setBusy(true);
+    setError("");
+    const form = new FormData();
+    form.append("file", file);
+    try {
+      const result = await api<{ user: { avatarUrl: string | null } }>("/api/users/me/avatar", { method: "POST", body: form });
+      if (result.user.avatarUrl) onChange(result.user.avatarUrl);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not upload the photo");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div>
+      <div className="flex items-center gap-3">
+        <Avatar name={name} url={url} size={size} />
+        <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-neutral-300 px-4 py-2 text-sm hover:bg-neutral-100">
+          <Camera size={16} />
+          {busy ? "Uploading…" : "Upload photo"}
+          <input
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            className="hidden"
+            disabled={busy}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = "";
+              if (file) pick(file).catch(() => undefined);
+            }}
+          />
+        </label>
+      </div>
+      {error && <p className="mt-2 text-sm text-[#ff5d73]">{error}</p>}
     </div>
   );
 }

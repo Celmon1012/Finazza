@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Bell, Compass, Hash, Home, LogOut, PieChart, Settings, SquarePen } from "lucide-react";
+import { Bell, Compass, Home, LogOut, MessageCircle, PieChart, Settings, SquarePen } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import type { Conversation, Investment } from "@/lib/types";
@@ -14,7 +14,7 @@ import { Avatar, Spinner } from "./ui";
 const links = [
   { href: "/home", label: "Home", icon: Home },
   { href: "/explore", label: "Explore", icon: Compass },
-  { href: "/chat", label: "Chatrooms", icon: Hash, badge: "messages" as const },
+  { href: "/chat", label: "Chatrooms", icon: MessageCircle, badge: "messages" as const },
   { href: "/notifications", label: "Notifications", icon: Bell, badge: "notifications" as const },
   { href: "/portfolio", label: "Portfolio", icon: PieChart },
   { href: "/settings", label: "Settings", icon: Settings },
@@ -23,7 +23,7 @@ const links = [
 const phoneTabs = [
   { href: "/home", label: "Home", icon: Home },
   { href: "/explore", label: "Explore", icon: Compass },
-  { href: "/chat", label: "Chat", icon: Hash, badge: "messages" as const },
+  { href: "/chat", label: "Chat", icon: MessageCircle, badge: "messages" as const },
   { href: "/notifications", label: "Alerts", icon: Bell, badge: "notifications" as const },
 ];
 
@@ -40,13 +40,14 @@ function SideNav() {
         </Link>
         <nav className="space-y-1">
           {links.map((link) => {
+            const href = link.href === "/portfolio" && user?.username ? `/u/${user.username}#portfolio` : link.href;
             const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
             const count = link.badge ? badges[link.badge] : 0;
             const Icon = link.icon;
             return (
               <Link
                 key={link.href}
-                href={link.href}
+                href={href}
                 className={cn(
                   "flex items-center gap-3 rounded-full px-4 py-3 text-[1.05rem]",
                   active ? "bg-neutral-100 font-semibold" : "hover:bg-neutral-100",
@@ -96,7 +97,7 @@ function AccountSheet({ onClose }: { onClose: () => void }) {
   const { user, logout } = useAuth();
   const router = useRouter();
   const rows = [
-    { href: "/portfolio", label: "Portfolio", hint: "Holdings and proof", icon: PieChart },
+    { href: user?.username ? `/u/${user.username}#portfolio` : "/portfolio", label: "Portfolio", hint: "On your profile", icon: PieChart },
     { href: "/settings", label: "Settings", hint: "Profile, privacy, and password", icon: Settings },
     ...(user?.role === "admin" ? [{ href: "/admin", label: "Admin", hint: "Moderation", icon: Settings }] : []),
   ];
@@ -225,7 +226,7 @@ function RightRail() {
         {loading ? (
           <Spinner label="Loading records" />
         ) : items.length === 0 ? (
-          <p className="mt-3 text-sm text-neutral-500">No holdings yet. Add one from Portfolio.</p>
+          <p className="mt-3 text-sm text-neutral-500">No holdings yet. Add one on your profile.</p>
         ) : (
           <ul className="mt-3 space-y-3">
             {items.map((item) => (
@@ -236,7 +237,7 @@ function RightRail() {
             ))}
           </ul>
         )}
-        <Link href="/portfolio" className="mt-4 inline-block text-sm text-[#c56a00]">
+        <Link href={user?.username ? `/u/${user.username}#portfolio` : "/portfolio"} className="mt-4 inline-block text-sm text-[#c56a00]">
           Open portfolio
         </Link>
       </section>
