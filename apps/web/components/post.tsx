@@ -81,7 +81,7 @@ export function Composer({
             ))}
           </div>
         )}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-3 text-[#c56a00]">
             <label className="cursor-pointer">
               <ImagePlus size={18} />
