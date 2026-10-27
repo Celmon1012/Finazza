@@ -132,35 +132,36 @@ export function AvatarPicker({
 
   return (
     <div>
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 items-center gap-3">
         <Avatar name={name} url={url} size={size} />
-        <label aria-label="Upload photo" className="inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-neutral-300 hover:bg-neutral-100 sm:w-auto sm:gap-2 sm:px-4">
-          <Camera size={18} />
-          <span className="sr-only sm:not-sr-only sm:text-sm">{busy ? "Working…" : "Upload photo"}</span>
-          <input
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            className="hidden"
-            disabled={busy}
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              event.target.value = "";
-              if (file) pick(file).catch(() => undefined);
-            }}
-          />
-        </label>
-        {url && (
-          <button
-            type="button"
-            aria-label="Remove photo"
-            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-neutral-300 text-neutral-500 hover:text-[#ff5d73] disabled:opacity-50 sm:w-auto sm:gap-2 sm:px-4"
-            disabled={busy}
-            onClick={() => remove().catch(() => undefined)}
-          >
-            <X size={18} />
-            <span className="sr-only sm:not-sr-only sm:text-sm">Remove photo</span>
-          </button>
-        )}
+        <div className="flex min-w-0 flex-wrap gap-2">
+          <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-full border border-neutral-300 px-3 text-sm hover:bg-neutral-100">
+            <Camera size={16} />
+            <span>{busy ? "Working…" : "Change profile picture"}</span>
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="hidden"
+              disabled={busy}
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.target.value = "";
+                if (file) pick(file).catch(() => undefined);
+              }}
+            />
+          </label>
+          {url && (
+            <button
+              type="button"
+              className="inline-flex h-10 items-center gap-2 rounded-full border border-neutral-300 px-3 text-sm text-neutral-700 hover:text-[#ff5d73] disabled:opacity-50"
+              disabled={busy}
+              onClick={() => remove().catch(() => undefined)}
+            >
+              <X size={16} />
+              Delete profile picture
+            </button>
+          )}
+        </div>
       </div>
       {error && <p className="mt-2 text-sm text-[#ff5d73]">{error}</p>}
     </div>

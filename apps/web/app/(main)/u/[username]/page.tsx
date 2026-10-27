@@ -97,7 +97,7 @@ function ProfileScreen() {
   return (
     <div>
       <header className="border-b border-neutral-200 px-4 py-5">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           {mine ? (
             <AvatarPicker
               name={profile.displayName}
