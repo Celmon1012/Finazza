@@ -87,7 +87,7 @@ function ProfileScreen() {
   return (
     <div>
       <header className="border-b border-neutral-200 px-4 py-5">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center justify-between gap-3">
           {mine ? (
             <AvatarPicker
               name={profile.displayName}
@@ -103,7 +103,7 @@ function ProfileScreen() {
           )}
           <div className="flex flex-wrap justify-end gap-2">
             {mine ? (
-              <Link href="/settings" className="rounded-full border border-neutral-300 px-4 py-2 text-sm">
+              <Link href="/settings" className="inline-flex h-10 shrink-0 items-center rounded-full border border-neutral-300 px-4 text-sm">
                 Edit profile
               </Link>
             ) : (

@@ -78,6 +78,10 @@ export function createApp() {
       res.status(400).json({ error: error.code === "LIMIT_FILE_SIZE" ? "Files must be 8 MB or smaller" : error.message });
       return;
     }
+    if (error instanceof Error && /multipart|boundary|unexpected end of form|entity too large/i.test(error.message)) {
+      res.status(400).json({ error: "That photo is too large or was cut off. Use a smaller image." });
+      return;
+    }
     if (error instanceof HttpError) {
       res.status(error.status).json({ error: error.message });
       return;

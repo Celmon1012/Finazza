@@ -142,7 +142,13 @@ router.post(
       throw new HttpError(400, "Confirm that real names, account numbers, and addresses were removed");
     }
     if (!req.file) throw new HttpError(400, "Choose an image or PDF");
-    const saved = await saveUpload(req.file.buffer, req.file.mimetype, true);
+    let saved;
+    try {
+      saved = await saveUpload(req.file.buffer, req.file.mimetype, true);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not upload the proof";
+      throw new HttpError(400, message.slice(0, 200));
+    }
     const previous = await Proof.findOne({ investment: record._id });
     if (previous) {
       await deletePublicFile(previous.url);

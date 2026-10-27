@@ -38,11 +38,9 @@ export function ProofEditor({
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
     if (imageRef.current) ctx.drawImage(imageRef.current, 0, 0, canvas.width, canvas.height);
-    else {
-      ctx.fillStyle = "#f5f5f5";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-    }
     for (const mark of [...nextMarks, nextDraft].filter(Boolean) as Mark[]) drawMark(ctx, mark);
   }
 
@@ -130,12 +128,12 @@ export function ProofEditor({
       setLocalError("Choose a photo of the receipt first");
       return;
     }
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.82));
     if (!blob) {
       setLocalError("Could not save the edited photo");
       return;
     }
-    await onSave(new File([blob], "redacted-proof.png", { type: "image/png" }));
+    await onSave(new File([blob], "redacted-proof.jpg", { type: "image/jpeg" }));
   }
 
   return (
