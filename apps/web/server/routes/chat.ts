@@ -8,6 +8,7 @@ import { Conversation, Message, ReadState, User, sameId } from "../models.js";
 import { createNotification, getIO } from "../notify.js";
 import { authorMini, messageDto } from "../present.js";
 import { assertCleanText, canMessage, escapeRegex, extractMentions } from "../social.js";
+import { isStoredFileUrl } from "../storage.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -179,7 +180,7 @@ router.post(
     const body = z
       .object({
         text: z.string().trim().max(1000).default(""),
-        imageUrl: z.string().startsWith("/uploads/").nullable().optional(),
+        imageUrl: z.string().refine(isStoredFileUrl, "That image is not one of your uploads").nullable().optional(),
       })
       .parse(req.body);
     if (!body.text && !body.imageUrl) throw new HttpError(400, "Write a message or attach an image");

@@ -42,6 +42,21 @@ function publicUrl(filename: string) {
   return `/uploads/${filename}`;
 }
 
+/** Local disk paths and this project's public storage URLs are the only image addresses a post or chat may keep. */
+export function isStoredFileUrl(url: string) {
+  if (/^\/uploads\/[A-Za-z0-9._-]+$/.test(url)) return true;
+  if (!config.supabaseUrl) return false;
+  try {
+    const file = new URL(url);
+    const base = new URL(config.supabaseUrl);
+    const prefix = `/storage/v1/object/public/${BUCKET}/`;
+    const name = file.pathname.slice(prefix.length);
+    return file.protocol === "https:" && file.host === base.host && file.pathname.startsWith(prefix) && /^[A-Za-z0-9._-]+$/.test(name);
+  } catch {
+    return false;
+  }
+}
+
 let bucketReady: Promise<void> | null = null;
 
 function ensureBucket() {

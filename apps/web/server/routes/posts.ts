@@ -7,6 +7,7 @@ import { Follow, Like, Post, Repost, User, sameId } from "../models.js";
 import { createNotification } from "../notify.js";
 import { postPopulate, presentPosts } from "../present.js";
 import { assertCleanText, excludedAuthorIds, extractMentions } from "../social.js";
+import { isStoredFileUrl } from "../storage.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -21,7 +22,7 @@ const writeLimiter = rateLimit({
 });
 
 const attachmentSchema = z.object({
-  url: z.string().startsWith("/uploads/"),
+  url: z.string().refine(isStoredFileUrl, "That image is not one of your uploads"),
   kind: z.literal("image").default("image"),
 });
 
