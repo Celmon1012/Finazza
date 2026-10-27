@@ -92,9 +92,16 @@ export function Composer({
             </Link>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-xs text-neutral-500">{text.length}/500</span>
-            <Button type="submit" disabled={busy || (!text.trim() && files.length === 0)}>
-              {replyTo ? "Reply" : "Post"}
+            <span className={cn("text-xs", text.length >= 450 ? "text-[#ff5d73]" : "text-neutral-500")}>
+              {text.length === 0 ? (files.length ? "Photo ready" : "Write a note to post") : `${text.length} of 500`}
+            </span>
+            <Button
+              type="submit"
+              variant={text.trim() || files.length ? "primary" : "outline"}
+              disabled={busy || (!text.trim() && files.length === 0)}
+              aria-label={text.trim() || files.length ? undefined : "Write a note or add a photo first"}
+            >
+              {busy ? "Posting…" : replyTo ? "Reply" : "Post"}
             </Button>
           </div>
         </div>
