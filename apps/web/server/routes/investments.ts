@@ -68,6 +68,22 @@ function parseRecord(body: z.infer<typeof investmentSchema>) {
   };
 }
 
+function orderedInvestments(records: any[], orderIds: string[]) {
+  const rank = new Map(orderIds.map((id, index) => [id, index]));
+  const known: any[] = [];
+  const unknown: any[] = [];
+  for (const record of records) {
+    if (rank.has(String(record._id))) known.push(record);
+    else unknown.push(record);
+  }
+  known.sort((a, b) => (rank.get(String(a._id)) ?? 0) - (rank.get(String(b._id)) ?? 0));
+  return [...unknown, ...known];
+}
+
+async function presentOwned(records: any[], orderIds: string[]) {
+  return Promise.all(orderedInvestments(records, orderIds).map((record) => investmentDto(record)));
+}
+
 async function loadOwned(id: string, userId: unknown) {
   const record = await Investment.findById(id);
   if (!record) throw new HttpError(404, "Investment record not found");
@@ -78,8 +94,8 @@ async function loadOwned(id: string, userId: unknown) {
 router.get(
   "/me",
   wrap(async (req, res) => {
-    const records = await Investment.find({ owner: req.user!._id }).sort({ updatedAt: -1 }).populate("owner", "username displayName avatarUrl");
-    res.json({ investments: await Promise.all(records.map((record) => investmentDto(record))) });
+    const records = await Investment.find({ owner: req.user!._id }).sort({ createdAt: -1 }).populate("owner", "username displayName avatarUrl");
+    res.json({ investments: await presentOwned(records, req.user!.portfolioOrderIds || []) });
   }),
 );
 
@@ -92,7 +108,7 @@ router.get(
       throw new HttpError(404, "Profile unavailable");
     }
     const records = await Investment.find({ owner: user._id }).sort({ createdAt: -1 }).populate("owner", "username displayName avatarUrl");
-    res.json({ investments: await Promise.all(records.map((record) => investmentDto(record))) });
+    res.json({ investments: await presentOwned(records, user.portfolioOrderIds || []) });
   }),
 );
 
@@ -101,8 +117,26 @@ router.post(
   wrap(async (req, res) => {
     const data = parseRecord(investmentSchema.parse(req.body));
     const record = await Investment.create({ ...data, owner: req.user!._id });
+    const id = String(record._id);
+    const current = (req.user!.portfolioOrderIds || []).map(String).filter((item: string) => item !== id);
+    req.user!.portfolioOrderIds = [id, ...current].slice(0, 200);
+    await req.user!.save();
     await record.populate("owner", "username displayName avatarUrl");
     res.status(201).json({ investment: await investmentDto(record) });
+  }),
+);
+
+router.post(
+  "/reorder",
+  wrap(async (req, res) => {
+    const body = z.object({ ids: z.array(z.string().uuid()).max(200) }).parse(req.body);
+    const records = await Investment.find({ owner: req.user!._id }).sort({ createdAt: -1 }).populate("owner", "username displayName avatarUrl");
+    const owned = new Set(records.map((record) => String(record._id)));
+    const requested = body.ids.filter((id, index) => owned.has(id) && body.ids.indexOf(id) === index);
+    const missing = records.map((record) => String(record._id)).filter((id) => !requested.includes(id));
+    req.user!.portfolioOrderIds = [...requested, ...missing].slice(0, 200);
+    await req.user!.save();
+    res.json({ investments: await presentOwned(records, req.user!.portfolioOrderIds) });
   }),
 );
 
@@ -128,6 +162,9 @@ router.delete(
       await proof.deleteOne();
     }
     await record.deleteOne();
+    const removed = String(record._id);
+    req.user!.portfolioOrderIds = (req.user!.portfolioOrderIds || []).map(String).filter((item: string) => item !== removed);
+    await req.user!.save();
     res.json({ ok: true });
   }),
 );

@@ -194,12 +194,18 @@ export function InvestmentEditor({
 export function InvestmentCard({
   item,
   mine,
+  canMoveUp,
+  canMoveDown,
+  onMove,
   onChange,
   onEdit,
   onUploadProof,
 }: {
   item: Investment;
   mine?: boolean;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
+  onMove?: (direction: -1 | 1) => void;
   onChange?: (next: Investment | null) => void;
   onEdit?: () => void;
   onUploadProof?: () => void;
@@ -291,6 +297,16 @@ export function InvestmentCard({
           </>
         )}
       </div>
+      {mine && (canMoveUp || canMoveDown) && (
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <Button type="button" variant="outline" className="h-10 w-full" disabled={!canMoveUp} onClick={() => onMove?.(-1)}>
+            Move up
+          </Button>
+          <Button type="button" variant="outline" className="h-10 w-full" disabled={!canMoveDown} onClick={() => onMove?.(1)}>
+            Move down
+          </Button>
+        </div>
+      )}
       {mine && (
         <div className="mt-3 grid grid-cols-2 gap-2">
           <Button type="button" variant="outline" className="h-10 w-full" onClick={onEdit}>
@@ -321,6 +337,7 @@ export function PortfolioBoard({
   const [attachProofAfterSave, setAttachProofAfterSave] = useState(false);
   const [proofBusy, setProofBusy] = useState(false);
   const [proofError, setProofError] = useState("");
+  const [moving, setMoving] = useState(false);
 
   function closeEditor() {
     setAttachProofAfterSave(false);
@@ -348,6 +365,28 @@ export function PortfolioBoard({
       return;
     }
     setPickingProof(true);
+  }
+
+  async function move(index: number, direction: -1 | 1) {
+    const next = index + direction;
+    if (moving || next < 0 || next >= items.length) return;
+    const reordered = items.slice();
+    const [row] = reordered.splice(index, 1);
+    reordered.splice(next, 0, row);
+    const previous = items;
+    onChange(reordered);
+    setMoving(true);
+    try {
+      const result = await api<{ investments: Investment[] }>("/api/investments/reorder", {
+        method: "POST",
+        body: JSON.stringify({ ids: reordered.map((item) => item.id) }),
+      });
+      onChange(result.investments);
+    } catch {
+      onChange(previous);
+    } finally {
+      setMoving(false);
+    }
   }
 
   async function uploadProof(file: File) {
@@ -384,7 +423,9 @@ export function PortfolioBoard({
       )}
       {mine && (
         <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-          <p className="max-w-md text-xs leading-5 text-neutral-500">{DISCLAIMER}</p>
+          <p className="max-w-md text-xs leading-5 text-neutral-500">
+            {DISCLAIMER} {items.length > 1 ? "Move up and Move down set the order visitors see." : ""}
+          </p>
           <Button type="button" variant="outline" onClick={() => { setAttachProofAfterSave(false); setEditing("new"); }}>
             Add holding
           </Button>
@@ -445,11 +486,14 @@ export function PortfolioBoard({
           body={mine ? "Add a holding, then upload a photo of the receipt. Cover names, account numbers, and addresses before it is public." : "No investment records shared yet."}
         />
       )}
-      {items.map((item) => (
+      {items.map((item, index) => (
         <div key={item.id}>
           <InvestmentCard
             item={item}
             mine={mine}
+            canMoveUp={mine && index > 0}
+            canMoveDown={mine && index < items.length - 1}
+            onMove={(direction) => move(index, direction)}
             onUploadProof={() => setProofItem(item)}
             onEdit={() => setEditing(item)}
             onChange={(next) => {

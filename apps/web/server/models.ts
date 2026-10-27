@@ -165,10 +165,16 @@ function bookmarkIdsFrom(settings: any) {
   return Array.isArray(stored) ? stored.map(String) : [];
 }
 
+function portfolioOrderFrom(settings: any) {
+  const stored = settings?._portfolioOrder;
+  return Array.isArray(stored) ? stored.map(String) : [];
+}
+
 function stripBookmarkStore(settings: any) {
   if (!settings || typeof settings !== "object") return {};
   const rest = { ...settings };
   delete rest._bookmarks;
+  delete rest._portfolioOrder;
   return rest;
 }
 
@@ -189,6 +195,7 @@ function mapUser(row: any) {
     messagePrivacy: row.message_privacy || "everyone",
     notificationSettings: { ...notificationDefaults, ...stripBookmarkStore(row.notification_settings) },
     bookmarkedPostIds: bookmarkIdsFrom(row.notification_settings),
+    portfolioOrderIds: portfolioOrderFrom(row.notification_settings),
     blockedUserIds: row.blocked_user_ids || [],
     mutedUserIds: row.muted_user_ids || [],
     acceptedTermsAt: row.accepted_terms_at,
@@ -211,7 +218,11 @@ function mapUser(row: any) {
       role: doc.role || "user",
       suspended: Boolean(doc.suspended),
       message_privacy: doc.messagePrivacy || "everyone",
-      notification_settings: { ...(doc.notificationSettings || notificationDefaults), _bookmarks: (doc.bookmarkedPostIds || []).map(String) },
+      notification_settings: {
+        ...(doc.notificationSettings || notificationDefaults),
+        _bookmarks: (doc.bookmarkedPostIds || []).map(String),
+        _portfolioOrder: (doc.portfolioOrderIds || []).map(String),
+      },
       blocked_user_ids: (doc.blockedUserIds || []).map(idOf),
       muted_user_ids: (doc.mutedUserIds || []).map(idOf),
       accepted_terms_at: iso(doc.acceptedTermsAt),
