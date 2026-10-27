@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Bell, Compass, Hash, Home, LogOut, PieChart, Settings, SquarePen, X } from "lucide-react";
+import { Bell, Compass, Hash, Home, LogOut, PieChart, Settings, SquarePen } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import type { Conversation, Investment } from "@/lib/types";
@@ -20,7 +20,14 @@ const links = [
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
-function SideNav({ onNavigate }: { onNavigate?: () => void }) {
+const phoneTabs = [
+  { href: "/home", label: "Home", icon: Home },
+  { href: "/explore", label: "Explore", icon: Compass },
+  { href: "/chat", label: "Chat", icon: Hash, badge: "messages" as const },
+  { href: "/notifications", label: "Alerts", icon: Bell, badge: "notifications" as const },
+];
+
+function SideNav() {
   const pathname = usePathname() || "";
   const { user, badges, logout } = useAuth();
   const router = useRouter();
@@ -28,16 +35,9 @@ function SideNav({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mb-5 flex items-center justify-between px-3">
-          <Link href="/home" className="inline-flex" onClick={onNavigate}>
-            <Logo />
-          </Link>
-          {onNavigate && (
-            <button type="button" className="grid h-10 w-10 place-items-center rounded-full hover:bg-neutral-100 lg:hidden" aria-label="Close menu" onClick={onNavigate}>
-              <X size={20} />
-            </button>
-          )}
-        </div>
+        <Link href="/home" className="mb-5 inline-flex px-3">
+          <Logo />
+        </Link>
         <nav className="space-y-1">
           {links.map((link) => {
             const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
@@ -47,7 +47,6 @@ function SideNav({ onNavigate }: { onNavigate?: () => void }) {
               <Link
                 key={link.href}
                 href={link.href}
-                onClick={onNavigate}
                 className={cn(
                   "flex items-center gap-3 rounded-full px-4 py-3 text-[1.05rem]",
                   active ? "bg-neutral-100 font-semibold" : "hover:bg-neutral-100",
@@ -64,12 +63,12 @@ function SideNav({ onNavigate }: { onNavigate?: () => void }) {
             );
           })}
           {user?.role === "admin" && (
-            <Link href="/admin" onClick={onNavigate} className={cn("flex items-center gap-3 rounded-full px-4 py-3", pathname.startsWith("/admin") && "bg-neutral-100 font-semibold")}>
+            <Link href="/admin" className={cn("flex items-center gap-3 rounded-full px-4 py-3", pathname.startsWith("/admin") && "bg-neutral-100 font-semibold")}>
               <Settings size={22} /> Admin
             </Link>
           )}
         </nav>
-        <Link href="/home" onClick={onNavigate} className="gold-fill mt-4 flex w-full items-center justify-center gap-2 rounded-full py-3 font-semibold">
+        <Link href="/home" className="gold-fill mt-4 flex w-full items-center justify-center gap-2 rounded-full py-3 font-semibold">
           <SquarePen size={18} /> Post
         </Link>
       </div>
@@ -78,7 +77,6 @@ function SideNav({ onNavigate }: { onNavigate?: () => void }) {
         aria-label="Log out"
         className="mt-2 flex shrink-0 items-center gap-3 rounded-full border-t border-neutral-200 px-3 py-3 text-left hover:bg-neutral-100"
         onClick={() => {
-          onNavigate?.();
           logout();
           router.replace("/");
         }}
@@ -94,13 +92,67 @@ function SideNav({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
+function AccountSheet({ onClose }: { onClose: () => void }) {
+  const { user, logout } = useAuth();
+  const router = useRouter();
+  const rows = [
+    { href: "/portfolio", label: "Portfolio", hint: "Holdings and proof", icon: PieChart },
+    { href: "/settings", label: "Settings", hint: "Profile, privacy, and password", icon: Settings },
+    ...(user?.role === "admin" ? [{ href: "/admin", label: "Admin", hint: "Moderation", icon: Settings }] : []),
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 lg:hidden">
+      <button type="button" className="absolute inset-0 bg-black/40" aria-label="Close account" onClick={onClose} />
+      <div className="sheet-rise absolute inset-x-0 bottom-0 rounded-t-[28px] border border-neutral-200 bg-white px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-24px_60px_-28px_rgba(28,20,12,0.45)]">
+        <div className="mx-auto mb-4 h-1.5 w-11 rounded-full bg-neutral-200" />
+        <Link href={user?.username ? `/u/${user.username}` : "/settings"} onClick={onClose} className="flex items-center gap-3 rounded-2xl bg-[#fff8ee] px-3 py-3">
+          <Avatar name={user?.displayName || "U"} url={user?.avatarUrl} size={52} />
+          <span className="min-w-0">
+            <span className="block truncate text-base font-semibold">{user?.displayName}</span>
+            <span className="block truncate text-sm text-neutral-500">@{user?.username}</span>
+          </span>
+        </Link>
+        <div className="mt-3 overflow-hidden rounded-2xl border border-neutral-200">
+          {rows.map((row) => {
+            const Icon = row.icon;
+            return (
+              <Link key={row.href} href={row.href} onClick={onClose} className="flex items-center gap-3 border-b border-neutral-200 px-4 py-3.5 last:border-b-0 hover:bg-neutral-50">
+                <span className="grid h-10 w-10 place-items-center rounded-full bg-neutral-100 text-[#c56a00]">
+                  <Icon size={18} />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold">{row.label}</span>
+                  <span className="block text-xs text-neutral-500">{row.hint}</span>
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-neutral-950 py-3.5 text-sm font-semibold text-white"
+          onClick={() => {
+            onClose();
+            logout();
+            router.replace("/");
+          }}
+        >
+          <LogOut size={18} />
+          Log out
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || "";
   const { user, badges } = useAuth();
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
 
   useEffect(() => {
-    setMenuOpen(false);
+    setAccountOpen(false);
   }, [pathname]);
 
   return (
@@ -114,35 +166,34 @@ export function Shell({ children }: { children: React.ReactNode }) {
         <RightRail />
       </div>
 
-      {menuOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <button type="button" className="absolute inset-0 bg-black/40" aria-label="Close menu" onClick={() => setMenuOpen(false)} />
-          <aside className="relative flex h-full w-[min(300px,88vw)] flex-col bg-white px-3 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-xl">
-            <SideNav onNavigate={() => setMenuOpen(false)} />
-          </aside>
-        </div>
-      )}
+      {accountOpen && <AccountSheet onClose={() => setAccountOpen(false)} />}
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 flex border-t border-neutral-200 bg-white pb-[env(safe-area-inset-bottom)] lg:hidden">
-        {links.slice(0, 5).map((link) => {
-          const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
-          const Icon = link.icon;
-          const count = link.badge ? badges[link.badge] : 0;
-          return (
-            <Link key={link.href} href={link.href} aria-label={link.label} className={cn("relative grid flex-1 place-items-center py-3", active ? "text-[#c56a00]" : "text-neutral-500")}>
-              <Icon size={22} />
-              {count > 0 && <span className="absolute right-[28%] top-2 h-2 w-2 rounded-full bg-[#ff7a18]" />}
-            </Link>
-          );
-        })}
-        <button
-          type="button"
-          aria-label="Open menu and log out"
-          className={cn("grid flex-1 place-items-center py-3", menuOpen ? "text-[#c56a00]" : "text-neutral-500")}
-          onClick={() => setMenuOpen(true)}
-        >
-          <Avatar name={user?.displayName || "U"} url={user?.avatarUrl} size={28} />
-        </button>
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-neutral-200 bg-white/95 backdrop-blur lg:hidden">
+        <div className="mx-auto flex max-w-lg items-stretch px-1 pb-[env(safe-area-inset-bottom)]">
+          {phoneTabs.map((link) => {
+            const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
+            const Icon = link.icon;
+            const count = link.badge ? badges[link.badge] : 0;
+            return (
+              <Link key={link.href} href={link.href} className={cn("relative flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px]", active ? "font-semibold text-[#c56a00]" : "text-neutral-500")}>
+                <Icon size={21} strokeWidth={active ? 2.4 : 2} />
+                <span>{link.label}</span>
+                {count > 0 && <span className="absolute right-[22%] top-1.5 grid min-w-4 place-items-center rounded-full bg-[#ff7a18] px-1 text-[10px] font-semibold leading-4 text-black">{count > 9 ? "9+" : count}</span>}
+              </Link>
+            );
+          })}
+          <button
+            type="button"
+            aria-label="Account"
+            className={cn("flex flex-1 flex-col items-center gap-1 py-2 text-[11px]", accountOpen ? "font-semibold text-[#c56a00]" : "text-neutral-500")}
+            onClick={() => setAccountOpen(true)}
+          >
+            <span className={cn("rounded-full", accountOpen && "ring-2 ring-[#f0a020] ring-offset-2")}>
+              <Avatar name={user?.displayName || "U"} url={user?.avatarUrl} size={22} />
+            </span>
+            <span>You</span>
+          </button>
+        </div>
       </nav>
     </div>
   );

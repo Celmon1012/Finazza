@@ -47,6 +47,19 @@ select:focus-visible {
   filter: brightness(1.03);
 }
 
+@keyframes sheet-rise {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.sheet-rise {
+  animation: sheet-rise 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 .gold-text {
   background: linear-gradient(90deg, #e8941a, #f0a020);
   -webkit-background-clip: text;
