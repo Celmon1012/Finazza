@@ -5,7 +5,7 @@ import { requireAuth } from "../auth.js";
 import { HttpError, wrap } from "../http.js";
 import { Follow, Like, Post, Repost, User, sameId } from "../models.js";
 import { createNotification } from "../notify.js";
-import { postPopulate, presentPosts } from "../present.js";
+import { authorMini, postPopulate, presentPosts } from "../present.js";
 import { assertCleanText, excludedAuthorIds, extractMentions } from "../social.js";
 import { isStoredFileUrl } from "../storage.js";
 
@@ -106,40 +106,58 @@ router.post(
       repostOf: body.repostOf || null,
     });
 
-    if (replyParent) {
-      replyParent.replyCount += 1;
-      await replyParent.save();
-      await createNotification({
-        recipient: replyParent.author,
-        actor: req.user!._id,
-        type: "reply",
-        text: `${req.user!.displayName} replied to your post`,
-        link: `/post/${replyParent.id}`,
-      });
-    }
+    res.status(201).json({
+      post: {
+        id: String(post._id),
+        text: post.text || "",
+        createdAt: post.createdAt,
+        attachments: (post.attachments || []).map((file: { url: string; kind?: string }) => ({ url: file.url, kind: file.kind || "image" })),
+        replyTo: body.replyTo || null,
+        replyToAuthor: null,
+        repostOf: null,
+        author: authorMini(req.user),
+        likeCount: 0,
+        replyCount: 0,
+        repostCount: 0,
+        liked: false,
+        reposted: false,
+      },
+    });
 
-    if (body.repostOf && body.text) {
-      await Post.updateOne({ _id: body.repostOf }, { $inc: { repostCount: 1 } });
-      const original = await Post.findById(body.repostOf);
-      if (original) {
+    try {
+      if (replyParent) {
+        replyParent.replyCount += 1;
+        await replyParent.save();
         await createNotification({
-          recipient: original.author,
+          recipient: replyParent.author,
           actor: req.user!._id,
-          type: "repost",
-          text: `${req.user!.displayName} quoted your post`,
-          link: `/post/${post.id}`,
+          type: "reply",
+          text: `${req.user!.displayName} replied to your post`,
+          link: `/post/${replyParent.id}`,
         });
       }
+
+      if (body.repostOf && body.text) {
+        await Post.updateOne({ _id: body.repostOf }, { $inc: { repostCount: 1 } });
+        const original = await Post.findById(body.repostOf);
+        if (original) {
+          await createNotification({
+            recipient: original.author,
+            actor: req.user!._id,
+            type: "repost",
+            text: `${req.user!.displayName} quoted your post`,
+            link: `/post/${post.id}`,
+          });
+        }
+      }
+
+      await notifyMentions(body.text, req.user, `/post/${post.id}`, [
+        String(req.user!._id),
+        replyParent ? String(replyParent.author) : "",
+      ]);
+    } catch {
+      // The post is already saved and shown. A failed notice should not undo it.
     }
-
-    await notifyMentions(body.text, req.user, `/post/${post.id}`, [
-      String(req.user!._id),
-      replyParent ? String(replyParent.author) : "",
-    ]);
-
-    const hydrated = await Post.findById(post._id).populate(postPopulate);
-    const [dto] = await presentPosts([hydrated], String(req.user!._id));
-    res.status(201).json({ post: dto });
   }),
 );
 
@@ -182,14 +200,18 @@ router.post(
     await Like.create({ user: req.user!._id, post: post._id });
     post.likeCount += 1;
     await post.save();
-    await createNotification({
-      recipient: post.author,
-      actor: req.user!._id,
-      type: "like",
-      text: `${req.user!.displayName} liked your post`,
-      link: `/post/${post.id}`,
-    });
     res.json({ liked: true, likeCount: post.likeCount });
+    try {
+      await createNotification({
+        recipient: post.author,
+        actor: req.user!._id,
+        type: "like",
+        text: `${req.user!.displayName} liked your post`,
+        link: `/post/${post.id}`,
+      });
+    } catch {
+      // The like is already saved.
+    }
   }),
 );
 
@@ -221,14 +243,18 @@ router.post(
     await Repost.create({ user: req.user!._id, post: original._id, timelinePost: timeline._id });
     original.repostCount += 1;
     await original.save();
-    await createNotification({
-      recipient: original.author,
-      actor: req.user!._id,
-      type: "repost",
-      text: `${req.user!.displayName} reposted your post`,
-      link: `/post/${original.id}`,
-    });
     res.json({ reposted: true, repostCount: original.repostCount });
+    try {
+      await createNotification({
+        recipient: original.author,
+        actor: req.user!._id,
+        type: "repost",
+        text: `${req.user!.displayName} reposted your post`,
+        link: `/post/${original.id}`,
+      });
+    } catch {
+      // The repost is already saved.
+    }
   }),
 );
 

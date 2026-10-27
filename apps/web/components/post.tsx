@@ -18,7 +18,7 @@ export function Composer({
 }: {
   replyTo?: string;
   placeholder?: string;
-  onPosted?: (post: Post) => void;
+  onPosted?: (post: Post | null, replaceId?: string) => void;
 }) {
   const { user } = useAuth();
   const [text, setText] = useState("");
@@ -44,20 +44,43 @@ export function Composer({
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
-    setBusy(true);
+    const draft = text;
+    const photos = files;
+    if (!draft.trim() && photos.length === 0) return;
+    const pendingId = `pending-${Date.now()}`;
+    setText("");
+    setFiles([]);
     setError("");
+    onPosted?.(
+      {
+        id: pendingId,
+        text: draft.trim(),
+        createdAt: new Date().toISOString(),
+        attachments: photos,
+        replyTo: replyTo || null,
+        replyToAuthor: null,
+        repostOf: null,
+        author: user
+          ? { id: user.id, username: user.username, displayName: user.displayName, avatarUrl: user.avatarUrl }
+          : null,
+        likeCount: 0,
+        replyCount: 0,
+        repostCount: 0,
+        liked: false,
+        reposted: false,
+      },
+    );
     try {
       const result = await api<{ post: Post }>("/api/posts", {
         method: "POST",
-        body: JSON.stringify({ text, attachments: files, replyTo: replyTo || null }),
+        body: JSON.stringify({ text: draft, attachments: photos, replyTo: replyTo || null }),
       });
-      setText("");
-      setFiles([]);
-      onPosted?.(result.post);
+      onPosted?.(result.post, pendingId);
     } catch (err) {
+      onPosted?.(null, pendingId);
+      setText((current) => current || draft);
+      setFiles((current) => (current.length ? current : photos));
       setError(err instanceof Error ? err.message : "Could not post");
-    } finally {
-      setBusy(false);
     }
   }
 
@@ -149,20 +172,39 @@ export function PostCard({ post, onChange }: { post: Post; onChange?: () => void
   const author = post.author;
 
   if (hidden || !author) return null;
+  const pending = post.id.startsWith("pending-");
   const pureRepost = Boolean(post.repostOf && !post.text && post.attachments.length === 0);
 
   async function toggleLike() {
-    const result = await api<{ liked: boolean; likeCount: number }>(`/api/posts/${post.id}/like`, { method: "POST" });
-    setLiked(result.liked);
-    setLikeCount(result.likeCount);
+    if (post.id.startsWith("pending-")) return;
+    const previous = { liked, likeCount };
+    setLiked(!liked);
+    setLikeCount(Math.max(0, likeCount + (liked ? -1 : 1)));
+    try {
+      const result = await api<{ liked: boolean; likeCount: number }>(`/api/posts/${post.id}/like`, { method: "POST" });
+      setLiked(result.liked);
+      setLikeCount(result.likeCount);
+    } catch {
+      setLiked(previous.liked);
+      setLikeCount(previous.likeCount);
+    }
   }
 
   async function toggleRepost() {
-    const target = pureRepost && post.repostOf ? post.repostOf.id : post.id;
-    const result = await api<{ reposted: boolean; repostCount: number }>(`/api/posts/${target}/repost`, { method: "POST" });
-    setReposted(result.reposted);
-    setRepostCount(result.repostCount);
-    onChange?.();
+    if (post.id.startsWith("pending-")) return;
+    const previous = { reposted, repostCount };
+    setReposted(!reposted);
+    setRepostCount(Math.max(0, repostCount + (reposted ? -1 : 1)));
+    try {
+      const target = pureRepost && post.repostOf ? post.repostOf.id : post.id;
+      const result = await api<{ reposted: boolean; repostCount: number }>(`/api/posts/${target}/repost`, { method: "POST" });
+      setReposted(result.reposted);
+      setRepostCount(result.repostCount);
+      onChange?.();
+    } catch {
+      setReposted(previous.reposted);
+      setRepostCount(previous.repostCount);
+    }
   }
 
   async function remove() {
@@ -196,9 +238,15 @@ export function PostCard({ post, onChange }: { post: Post; onChange?: () => void
           <AttachmentGrid files={post.attachments} />
           {post.repostOf && <Embedded post={post.repostOf} />}
           <div className="mt-3 flex max-w-md items-center justify-between text-neutral-500">
-            <Link href={`/post/${pureRepost && post.repostOf ? post.repostOf.id : post.id}`} className="inline-flex items-center gap-1.5 text-sm hover:text-[#c56a00]">
-              <MessageCircle size={16} /> {post.replyCount || ""}
-            </Link>
+            {pending ? (
+              <span className="inline-flex items-center gap-1.5 text-sm">
+                <MessageCircle size={16} /> {post.replyCount || ""}
+              </span>
+            ) : (
+              <Link href={`/post/${pureRepost && post.repostOf ? post.repostOf.id : post.id}`} className="inline-flex items-center gap-1.5 text-sm hover:text-[#c56a00]">
+                <MessageCircle size={16} /> {post.replyCount || ""}
+              </Link>
+            )}
             <button type="button" onClick={toggleRepost} className={cn("inline-flex items-center gap-1.5 text-sm hover:text-[#3dd68c]", reposted && "text-[#3dd68c]")}>
               <Repeat2 size={16} /> {repostCount || ""}
             </button>
@@ -207,7 +255,7 @@ export function PostCard({ post, onChange }: { post: Post; onChange?: () => void
             </button>
             <span className="flex items-center gap-3">
               <ReportButton targetType="post" targetId={pureRepost && post.repostOf ? post.repostOf.id : post.id} label="" />
-              {user?.id === author.id && (
+              {user?.id === author.id && !pending && (
                 <button type="button" onClick={remove} aria-label="Delete post" className="hover:text-[#ff5d73]">
                   <Trash2 size={15} />
                 </button>

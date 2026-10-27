@@ -63,8 +63,18 @@ function ProfileScreen() {
   }
 
   async function follow() {
-    const result = await api<{ following: boolean }>(`/api/users/${username}/follow`, { method: "POST" });
-    setProfile((current) => (current ? { ...current, isFollowing: result.following, followersCount: current.followersCount + (result.following ? 1 : -1) } : current));
+    const previous = profile;
+    if (!previous) return;
+    const following = !previous.isFollowing;
+    setProfile({ ...previous, isFollowing: following, followersCount: Math.max(0, previous.followersCount + (following ? 1 : -1)) });
+    try {
+      const result = await api<{ following: boolean }>(`/api/users/${username}/follow`, { method: "POST" });
+      setProfile((current) =>
+        current ? { ...current, isFollowing: result.following, followersCount: Math.max(0, previous.followersCount + (result.following ? 1 : -1)) } : current,
+      );
+    } catch {
+      setProfile(previous);
+    }
   }
 
   async function setFlag(kind: "block" | "mute", value: boolean) {

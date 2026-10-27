@@ -190,11 +190,13 @@ router.post(
     assertMember(convo, req.user!._id);
 
     if (convo.type !== "topic") {
-      for (const member of convo.members) {
-        if (sameId(member.user?._id || member.user, req.user!._id)) continue;
-        const person = member.user?._id ? member.user : await User.findById(member.user);
-        if (person) await canMessage(req.user, person, "send");
-      }
+      await Promise.all(
+        convo.members.map(async (member: any) => {
+          if (sameId(member.user?._id || member.user, req.user!._id)) return;
+          const person = member.user?._id ? member.user : await User.findById(member.user);
+          if (person) await canMessage(req.user, person, "send");
+        }),
+      );
     }
 
     const message = await Message.create({
@@ -203,61 +205,66 @@ router.post(
       text: body.text,
       imageUrl: body.imageUrl || null,
     });
+    message.author = req.user;
     convo.lastMessageAt = message.createdAt;
     convo.lastMessageText = body.text || "Sent an image";
-    await convo.save();
-    await ReadState.findOneAndUpdate(
-      { user: req.user!._id, conversation: convo._id },
-      { lastReadAt: new Date() },
-      { upsert: true },
-    );
+    await Promise.all([
+      convo.save(),
+      ReadState.findOneAndUpdate(
+        { user: req.user!._id, conversation: convo._id },
+        { lastReadAt: new Date() },
+        { upsert: true },
+      ),
+    ]);
 
-    await message.populate("author", "username displayName avatarUrl");
     const dto = messageDto(message);
     getIO()?.to(String(convo._id)).emit("message:new", dto);
     getIO()?.to(`user:${req.user!.id}`).emit("inbox:update", { conversationId: String(convo._id) });
-
-    const mentioned = new Set(extractMentions(body.text));
-    const mentionedUsers = mentioned.size ? await User.find({ username: { $in: [...mentioned] } }) : [];
-    const mentionedIds = new Set(mentionedUsers.map((user) => String(user._id)));
-
-    if (convo.type === "topic") {
-      await Promise.all(
-        mentionedUsers.map((user) =>
-          createNotification({
-            recipient: user._id,
-            actor: req.user!._id,
-            type: "mention",
-            text: `${req.user!.displayName} mentioned you in #${convo.slug || convo.name}`,
-            link: `/chat/${convo.id}`,
-          }),
-        ),
-      );
-    } else {
-      await Promise.all(
-        convo.members
-          .filter((member: any) => !sameId(member.user?._id || member.user, req.user!._id))
-          .map((member: any) => {
-            const id = member.user?._id || member.user;
-            const type = mentionedIds.has(String(id)) ? "mention" : "chat";
-            const text =
-              type === "mention"
-                ? `${req.user!.displayName} mentioned you in ${conversationName(convo, id)}`
-                : convo.type === "dm"
-                  ? `${req.user!.displayName} sent you a message`
-                  : `${req.user!.displayName} sent a message in ${convo.name}`;
-            return createNotification({
-              recipient: id,
-              actor: req.user!._id,
-              type,
-              text,
-              link: `/chat/${convo.id}`,
-            });
-          }),
-      );
-    }
-
     res.status(201).json({ message: dto });
+
+    try {
+      const mentioned = new Set(extractMentions(body.text));
+      const mentionedUsers = mentioned.size ? await User.find({ username: { $in: [...mentioned] } }) : [];
+      const mentionedIds = new Set(mentionedUsers.map((user) => String(user._id)));
+
+      if (convo.type === "topic") {
+        await Promise.all(
+          mentionedUsers.map((user) =>
+            createNotification({
+              recipient: user._id,
+              actor: req.user!._id,
+              type: "mention",
+              text: `${req.user!.displayName} mentioned you in #${convo.slug || convo.name}`,
+              link: `/chat/${convo.id}`,
+            }),
+          ),
+        );
+      } else {
+        await Promise.all(
+          convo.members
+            .filter((member: any) => !sameId(member.user?._id || member.user, req.user!._id))
+            .map((member: any) => {
+              const id = member.user?._id || member.user;
+              const type = mentionedIds.has(String(id)) ? "mention" : "chat";
+              const text =
+                type === "mention"
+                  ? `${req.user!.displayName} mentioned you in ${conversationName(convo, id)}`
+                  : convo.type === "dm"
+                    ? `${req.user!.displayName} sent you a message`
+                    : `${req.user!.displayName} sent a message in ${convo.name}`;
+              return createNotification({
+                recipient: id,
+                actor: req.user!._id,
+                type,
+                text,
+                link: `/chat/${convo.id}`,
+              });
+            }),
+        );
+      }
+    } catch {
+      // The message is already saved and shown.
+    }
   }),
 );
 

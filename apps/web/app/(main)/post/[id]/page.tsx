@@ -38,7 +38,18 @@ export default function PostPage() {
       {error && <p className="px-4 py-6 text-sm text-[#ff5d73]">{error}</p>}
       {!post && !error && <Spinner />}
       {post && <PostCard post={post} onChange={load} />}
-      <Composer replyTo={id} placeholder="Post your reply" onPosted={(reply) => setReplies((current) => [...current, reply])} />
+      <Composer
+        replyTo={id}
+        placeholder="Post your reply"
+        onPosted={(reply, replaceId) => {
+          setReplies((current) => {
+            if (replaceId && !reply) return current.filter((item) => item.id !== replaceId);
+            if (replaceId && reply) return current.map((item) => (item.id === replaceId ? reply : item));
+            return reply ? [...current, reply] : current;
+          });
+          if (!replaceId && reply) setPost((current) => (current ? { ...current, replyCount: current.replyCount + 1 } : current));
+        }}
+      />
       {replies.map((reply) => (
         <PostCard key={reply.id} post={reply} />
       ))}

@@ -30,7 +30,15 @@ export default function HomePage() {
   return (
     <div>
       <PageHeader title="Home" subtitle="People you follow" />
-      <Composer onPosted={(post) => setPosts((current) => [post, ...current])} />
+      <Composer
+        onPosted={(post, replaceId) => {
+          setPosts((current) => {
+            if (replaceId && !post) return current.filter((item) => item.id !== replaceId);
+            if (replaceId && post) return current.map((item) => (item.id === replaceId ? post : item));
+            return post ? [post, ...current] : current;
+          });
+        }}
+      />
       {loading && <Spinner />}
       {error && <p className="px-4 py-6 text-sm text-[#ff5d73]">{error}</p>}
       {!loading && posts.length === 0 && <Empty title="Your feed is quiet" body="Follow Alex, Jordan, or Sam from Explore, or publish the first note yourself." />}

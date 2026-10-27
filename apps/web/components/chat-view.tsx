@@ -86,13 +86,33 @@ export function ChatView({ activeId }: { activeId?: string }) {
   async function send(imageUrl?: string) {
     if (!activeId || (!text.trim() && !imageUrl)) return;
     const body = { text, imageUrl: imageUrl || null };
+    const pendingId = `pending-${Date.now()}`;
+    const pending: ChatMessage = {
+      id: pendingId,
+      conversationId: activeId,
+      text: body.text.trim(),
+      imageUrl: body.imageUrl,
+      deleted: false,
+      createdAt: new Date().toISOString(),
+      author: user
+        ? { id: user.id, username: user.username, displayName: user.displayName, avatarUrl: user.avatarUrl }
+        : null,
+    };
     setText("");
-    const result = await api<{ message: ChatMessage }>(`/api/conversations/${activeId}/messages`, {
-      method: "POST",
-      body: JSON.stringify(body),
-    });
-    setMessages((current) => (current.some((item) => item.id === result.message.id) ? current : [...current, result.message]));
-    loadLists().catch(() => undefined);
+    setError("");
+    setMessages((current) => [...current, pending]);
+    try {
+      const result = await api<{ message: ChatMessage }>(`/api/conversations/${activeId}/messages`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+      setMessages((current) => current.map((item) => (item.id === pendingId ? result.message : item)));
+      loadLists().catch(() => undefined);
+    } catch (err) {
+      setMessages((current) => current.filter((item) => item.id !== pendingId));
+      setText((current) => current || body.text);
+      setError(err instanceof Error ? err.message : "Could not send");
+    }
   }
 
   async function removeEmpty(id: string) {
