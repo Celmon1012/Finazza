@@ -127,7 +127,7 @@ export default function RegisterPage() {
           <label className="flex items-start gap-2 text-sm text-neutral-600">
             <input type="checkbox" className="mt-1" checked={form.acceptedTerms} onChange={(event) => setForm({ ...form, acceptedTerms: event.target.checked })} required />
             <span>
-              I agree to the <Link href="/terms" className="text-[#c56a00]">terms</Link>. I understand posts are not financial advice and proof is not verified.
+              I agree to the <Link href="/terms" className="text-[#c56a00]">Terms of Use</Link> and <Link href="/privacy" className="text-[#c56a00]">Privacy Policy</Link>. I understand posts are not financial advice and proof is not verified.
             </span>
           </label>
           {error && <p className="text-sm text-[#ff5d73]">{error}</p>}

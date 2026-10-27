@@ -10,7 +10,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
   const router = useRouter();
 
   useEffect(() => {
-    if (ready && !user) router.replace("/login");
+    if (ready && !user) router.replace("/");
   }, [ready, user, router]);
 
   if (!ready || !user) return <FullScreenLoader />;

@@ -232,9 +232,14 @@ export default function LandingPage() {
         <div className="border-t border-[#f0e6d8]">
           <div className="mx-auto flex max-w-[1200px] flex-col gap-4 px-5 py-6 text-sm text-[#6b6258] sm:px-8 md:flex-row md:items-center md:justify-between">
             <p className="max-w-2xl">{DISCLAIMER}</p>
-            <Link href="/terms" className="text-[#a16207]">
-              Terms and disclaimer
-            </Link>
+            <div className="flex flex-wrap gap-x-5 gap-y-2">
+              <Link href="/privacy" className="text-[#a16207]">
+                Privacy Policy
+              </Link>
+              <Link href="/terms" className="text-[#a16207]">
+                Terms of Use
+              </Link>
+            </div>
           </div>
         </div>
       </footer>
