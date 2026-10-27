@@ -39,7 +39,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   function connect(token: string) {
     socket?.disconnect();
-    socket = io(API_URL || undefined, { auth: { token } });
+    socket = null;
+    // The hosted site answers the API with normal web routes. Those routes
+    // cannot hold a Socket.IO connection, so polling them only returns 404.
+    if (!API_URL) return;
+    socket = io(API_URL, { auth: { token } });
     socket.on("notification:new", () => {
       setBadges((current) => ({ ...current, notifications: current.notifications + 1 }));
     });
