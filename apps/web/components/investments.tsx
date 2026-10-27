@@ -223,7 +223,7 @@ export function InvestmentCard({
         <div>
           <p className="text-xs uppercase tracking-[0.14em] text-neutral-500">
             {item.assetClass}
-            {item.category ? ` · ${item.category}` : ""} · {item.recordType}
+            {item.category ? ` · ${item.category}` : ""} · {item.recordType === "trade" ? "completed trade" : item.recordType}
           </p>
           <h3 className="mt-1 text-lg font-semibold">{item.snapshotLabel}</h3>
         </div>
