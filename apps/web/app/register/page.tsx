@@ -37,7 +37,9 @@ export default function RegisterPage() {
   return (
     <main className="mx-auto grid min-h-screen max-w-md place-items-center px-6 py-10">
       <div className="w-full">
-        <Logo />
+        <Link href="/" aria-label="FINAZZA home">
+          <Logo />
+        </Link>
         <h1 className="mt-6 text-3xl font-semibold">Create your account</h1>
         <form className="mt-6 space-y-3" onSubmit={submit}>
           <Field label="Display name">

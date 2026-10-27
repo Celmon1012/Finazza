@@ -49,7 +49,9 @@ export default function LoginPage() {
   return (
     <main className="mx-auto grid min-h-screen max-w-md place-items-center px-6">
       <div className="w-full">
-        <Logo />
+        <Link href="/" aria-label="FINAZZA home">
+          <Logo />
+        </Link>
         <h1 className="mt-6 text-3xl font-semibold">Sign in</h1>
         <form className="mt-6 space-y-3" onSubmit={submit}>
           <input className={inputClass} type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
