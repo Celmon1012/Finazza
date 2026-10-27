@@ -197,6 +197,12 @@ export default function LandingPage() {
             <p className="mt-5 text-sm leading-6 text-[#6b6258]">
               Winson Tse started FINAZZA in Hong Kong to give investors a public place for discussions about stocks, derivatives, commodities and collectibles. He leads the development of FINAZZA with his team of professional programmers.
             </p>
+            <p className="mt-5 text-sm">
+              <span className="text-[#8a7f74]">Email </span>
+              <a href="mailto:w@finazza.app" className="text-[#a16207]">
+                w@finazza.app
+              </a>
+            </p>
           </div>
 
           <div className="overflow-hidden rounded-[28px] border border-[#f0e6d8]">
