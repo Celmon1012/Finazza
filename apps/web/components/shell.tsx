@@ -40,7 +40,7 @@ function SideNav() {
         </Link>
         <nav className="space-y-1">
           {links.map((link) => {
-            const href = link.href === "/portfolio" && user?.username ? `/u/${user.username}#portfolio` : link.href;
+            const href = link.href === "/portfolio" && user?.username ? `/u/${user.username}?tab=investment` : link.href;
             const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
             const count = link.badge ? badges[link.badge] : 0;
             const Icon = link.icon;
@@ -97,7 +97,7 @@ function AccountSheet({ onClose }: { onClose: () => void }) {
   const { user, logout } = useAuth();
   const router = useRouter();
   const rows = [
-    { href: user?.username ? `/u/${user.username}#portfolio` : "/portfolio", label: "Portfolio", hint: "On your profile", icon: PieChart },
+    { href: user?.username ? `/u/${user.username}?tab=investment` : "/portfolio", label: "Portfolio", hint: "On your profile", icon: PieChart },
     { href: "/settings", label: "Settings", hint: "Profile, privacy, and password", icon: Settings },
     ...(user?.role === "admin" ? [{ href: "/admin", label: "Admin", hint: "Moderation", icon: Settings }] : []),
   ];
@@ -237,7 +237,7 @@ function RightRail() {
             ))}
           </ul>
         )}
-        <Link href={user?.username ? `/u/${user.username}#portfolio` : "/portfolio"} className="mt-4 inline-block text-sm text-[#c56a00]">
+        <Link href={user?.username ? `/u/${user.username}?tab=investment` : "/portfolio"} className="mt-4 inline-block text-sm text-[#c56a00]">
           Open portfolio
         </Link>
       </section>

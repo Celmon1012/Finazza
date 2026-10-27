@@ -10,7 +10,7 @@ export default function PortfolioPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (ready && user) router.replace(`/u/${user.username}#portfolio`);
+    if (ready && user) router.replace(`/u/${user.username}?tab=investment`);
   }, [ready, user, router]);
 
   return <Spinner />;

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { PortfolioBoard } from "@/components/investments";
 import { PostCard } from "@/components/post";
@@ -13,7 +13,10 @@ import type { Conversation, Investment, Post, Profile } from "@/lib/types";
 
 export default function ProfilePage() {
   const params = useParams<{ username: string }>();
+  const search = useSearchParams();
   const username = params?.username ?? "";
+  const requested = search.get("tab");
+  const tab = requested === "investment" || requested === "portfolio" ? "investment" : requested === "profile" ? "profile" : "posts";
   const { user, refreshUser } = useAuth();
   const router = useRouter();
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -39,9 +42,17 @@ export default function ProfilePage() {
   }, [username]);
 
   useEffect(() => {
-    if (!profile || window.location.hash !== "#portfolio") return;
-    document.getElementById("portfolio")?.scrollIntoView({ block: "start" });
-  }, [profile]);
+    const hash = window.location.hash;
+    if (hash === "#portfolio" || hash === "#investment") {
+      router.replace(`/u/${username}?tab=investment`);
+    } else if (hash === "#profile") {
+      router.replace(`/u/${username}?tab=profile`);
+    }
+  }, [username, router]);
+
+  function chooseTab(next: "posts" | "profile" | "investment") {
+    router.replace(next === "posts" ? `/u/${username}` : `/u/${username}?tab=${next}`);
+  }
 
   async function follow() {
     const result = await api<{ following: boolean }>(`/api/users/${username}/follow`, { method: "POST" });
@@ -118,59 +129,86 @@ export default function ProfilePage() {
         )}
       </header>
 
-      <section className="border-b border-neutral-200 px-4 py-5">
-        <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-neutral-500">Personal description</h2>
-        <p className="mt-3 whitespace-pre-wrap">{profile.bio || (mine ? "No description yet. Add one from Edit profile." : "No description yet.")}</p>
-      </section>
+      <div className="flex border-b border-neutral-200" role="tablist">
+        {(
+          [
+            ["posts", "Posts"],
+            ["profile", "Profile"],
+            ["investment", "Investment"],
+          ] as const
+        ).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            role="tab"
+            aria-selected={tab === value}
+            className={`flex-1 py-3 text-sm ${tab === value ? "border-b-2 border-[#ffc14d] font-semibold" : "text-neutral-500"}`}
+            onClick={() => chooseTab(value)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
-      <section className="border-b border-neutral-200 px-4 py-5">
-        <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-neutral-500">Contact information</h2>
-        <dl className="mt-3 space-y-3 text-sm">
-          {mine && (
-            <div>
-              <dt className="text-neutral-500">Email</dt>
-              <dd className="mt-0.5">{user?.email}</dd>
-              <dd className="text-xs text-neutral-500">Only you can see your email.</dd>
-            </div>
+      {tab === "posts" && (
+        <section>
+          {profile.youBlocked ? (
+            <p className="px-4 py-8 text-sm text-neutral-500">You blocked this account. Unblock to see posts.</p>
+          ) : posts.length === 0 ? (
+            <p className="px-4 py-8 text-sm text-neutral-500">No posts yet.</p>
+          ) : (
+            posts.map((post) => <PostCard key={post.id} post={post} />)
           )}
-          <div>
-            <dt className="text-neutral-500">Location</dt>
-            <dd className="mt-0.5">{profile.location || "Not shared"}</dd>
-          </div>
-          <div>
-            <dt className="text-neutral-500">Website</dt>
-            <dd className="mt-0.5">
-              {profile.website ? (
-                <a href={profile.website} className="text-[#c56a00]" target="_blank" rel="noreferrer">
-                  {profile.website.replace(/^https?:\/\//, "")}
-                </a>
-              ) : (
-                "Not shared"
+        </section>
+      )}
+
+      {tab === "profile" && (
+        <>
+          <section className="border-b border-neutral-200 px-4 py-5">
+            <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-neutral-500">Personal description</h2>
+            <p className="mt-3 whitespace-pre-wrap">{profile.bio || (mine ? "No description yet. Add one from Edit profile." : "No description yet.")}</p>
+          </section>
+          <section className="border-b border-neutral-200 px-4 py-5">
+            <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-neutral-500">Contact information</h2>
+            <dl className="mt-3 space-y-3 text-sm">
+              {mine && (
+                <div>
+                  <dt className="text-neutral-500">Email</dt>
+                  <dd className="mt-0.5">{user?.email}</dd>
+                  <dd className="text-xs text-neutral-500">Only you can see your email.</dd>
+                </div>
               )}
-            </dd>
-          </div>
-        </dl>
-      </section>
+              <div>
+                <dt className="text-neutral-500">Location</dt>
+                <dd className="mt-0.5">{profile.location || "Not shared"}</dd>
+              </div>
+              <div>
+                <dt className="text-neutral-500">Website</dt>
+                <dd className="mt-0.5">
+                  {profile.website ? (
+                    <a href={profile.website} className="text-[#c56a00]" target="_blank" rel="noreferrer">
+                      {profile.website.replace(/^https?:\/\//, "")}
+                    </a>
+                  ) : (
+                    "Not shared"
+                  )}
+                </dd>
+              </div>
+            </dl>
+          </section>
+        </>
+      )}
 
-      <section id="portfolio" className="scroll-mt-4 border-b border-neutral-200">
-        <h2 className="px-4 pt-5 text-sm font-semibold uppercase tracking-[0.14em] text-neutral-500">Portfolio and investment experience</h2>
-        {profile.youBlocked ? (
-          <p className="px-4 py-8 text-sm text-neutral-500">You blocked this account. Unblock to see records.</p>
-        ) : (
-          <PortfolioBoard items={investments} mine={mine} onChange={setInvestments} />
-        )}
-      </section>
-
-      <section>
-        <h2 className="border-b border-neutral-200 px-4 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-neutral-500">Posts</h2>
-        {profile.youBlocked ? (
-          <p className="px-4 py-8 text-sm text-neutral-500">You blocked this account. Unblock to see posts.</p>
-        ) : posts.length === 0 ? (
-          <p className="px-4 py-8 text-sm text-neutral-500">No posts yet.</p>
-        ) : (
-          posts.map((post) => <PostCard key={post.id} post={post} />)
-        )}
-      </section>
+      {tab === "investment" && (
+        <section>
+          <h2 className="px-4 pt-5 text-sm font-semibold uppercase tracking-[0.14em] text-neutral-500">Portfolio and investment experience</h2>
+          {profile.youBlocked ? (
+            <p className="px-4 py-8 text-sm text-neutral-500">You blocked this account. Unblock to see records.</p>
+          ) : (
+            <PortfolioBoard items={investments} mine={mine} onChange={setInvestments} />
+          )}
+        </section>
+      )}
     </div>
   );
 }
