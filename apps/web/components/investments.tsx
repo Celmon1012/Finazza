@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Camera } from "lucide-react";
+import { Camera, ChevronDown } from "lucide-react";
 import { api, mediaUrl } from "@/lib/api";
 import type { Investment } from "@/lib/types";
 import { dateInput, DISCLAIMER, money, parseBuyPrice, percent } from "@/lib/utils";
@@ -205,6 +205,7 @@ export function InvestmentCard({
   onUploadProof?: () => void;
 }) {
   const [error, setError] = useState("");
+  const [proofOpen, setProofOpen] = useState(false);
 
   async function removeRecord() {
     if (!confirm("Remove this investment record? The proof photo is removed with it.")) return;
@@ -242,31 +243,52 @@ export function InvestmentCard({
       {item.comparisonNote && <p className="mt-1 text-xs text-[#c56a00]">{item.comparisonNote}</p>}
 
       <div className="mt-3 rounded-xl border border-[#ffc14d]/30 bg-[#ffc14d]/5 p-3">
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#c56a00]">Proof of investment</p>
         {item.proof ? (
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-[#c56a00]">{item.proof.label}</p>
-            {item.proof.mimeType.includes("pdf") ? (
-              <a className="text-sm underline" href={mediaUrl(item.proof.url)} target="_blank" rel="noreferrer">
-                View PDF proof
-              </a>
-            ) : (
-              <a href={mediaUrl(item.proof.url)} target="_blank" rel="noreferrer">
-                <img src={mediaUrl(item.proof.url)} alt="User-submitted proof" className="max-h-56 rounded-lg border border-neutral-200" />
-              </a>
+          <>
+            <button
+              type="button"
+              className="flex w-full items-center justify-between gap-3 text-left text-sm font-medium text-[#c56a00]"
+              aria-expanded={proofOpen}
+              onClick={() => setProofOpen((open) => !open)}
+            >
+              <span>{proofOpen ? "Hide proof" : "Tap to view proof"}</span>
+              <ChevronDown size={16} className={proofOpen ? "rotate-180" : ""} />
+            </button>
+            {proofOpen && (
+              <div className="mt-3 space-y-2">
+                <p className="text-sm font-medium text-[#c56a00]">{item.proof.label}</p>
+                {item.proof.mimeType.includes("pdf") ? (
+                  <a className="text-sm underline" href={mediaUrl(item.proof.url)} target="_blank" rel="noreferrer">
+                    View PDF proof
+                  </a>
+                ) : (
+                  <a href={mediaUrl(item.proof.url)} target="_blank" rel="noreferrer">
+                    <img src={mediaUrl(item.proof.url)} alt="User-submitted proof" className="max-h-56 rounded-lg border border-neutral-200" />
+                  </a>
+                )}
+                <ReportButton targetType="proof" targetId={item.proof.id} />
+                {mine && (
+                  <Button type="button" className="h-10 w-full" onClick={onUploadProof}>
+                    <Camera size={16} />
+                    Replace proof photo
+                  </Button>
+                )}
+              </div>
             )}
-            <ReportButton targetType="proof" targetId={item.proof.id} />
-          </div>
+          </>
         ) : (
-          <p className="mt-2 text-sm text-neutral-600">No photo yet. Upload a receipt or photo, then cover the sensitive details.</p>
-        )}
-        {mine && (
-          <div className="mt-3">
-            <Button type="button" className="h-10 w-full" onClick={onUploadProof}>
-              <Camera size={16} />
-              {item.proof ? "Replace proof photo" : "Upload proof photo"}
-            </Button>
-          </div>
+          <>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#c56a00]">Proof of investment</p>
+            <p className="mt-2 text-sm text-neutral-600">No photo yet. Upload a receipt or photo, then cover the sensitive details.</p>
+            {mine && (
+              <div className="mt-3">
+                <Button type="button" className="h-10 w-full" onClick={onUploadProof}>
+                  <Camera size={16} />
+                  Upload proof photo
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </div>
       {mine && (
