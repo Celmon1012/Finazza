@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Camera } from "lucide-react";
 import { api, mediaUrl } from "@/lib/api";
 import type { Investment } from "@/lib/types";
@@ -194,29 +195,26 @@ export function InvestmentCard({
   item,
   mine,
   onChange,
+  onEdit,
   onUploadProof,
 }: {
   item: Investment;
   mine?: boolean;
   onChange?: (next: Investment | null) => void;
+  onEdit?: () => void;
   onUploadProof?: () => void;
 }) {
   const [error, setError] = useState("");
 
-  async function removeProof() {
+  async function removeRecord() {
+    if (!confirm("Remove this investment record? The proof photo is removed with it.")) return;
     setError("");
     try {
-      const result = await api<{ investment: Investment }>(`/api/investments/${item.id}/proof`, { method: "DELETE" });
-      onChange?.(result.investment);
+      await api(`/api/investments/${item.id}`, { method: "DELETE" });
+      onChange?.(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not remove the proof");
+      setError(err instanceof Error ? err.message : "Could not remove the record");
     }
-  }
-
-  async function removeRecord() {
-    if (!confirm("Delete this investment record?")) return;
-    await api(`/api/investments/${item.id}`, { method: "DELETE" });
-    onChange?.(null);
   }
 
   return (
@@ -257,33 +255,31 @@ export function InvestmentCard({
                 <img src={mediaUrl(item.proof.url)} alt="User-submitted proof" className="max-h-56 rounded-lg border border-neutral-200" />
               </a>
             )}
-            <div className="flex gap-3">
-              {mine && (
-                <button type="button" className="text-xs text-neutral-500" onClick={removeProof}>
-                  Remove proof
-                </button>
-              )}
-              <ReportButton targetType="proof" targetId={item.proof.id} />
-            </div>
+            <ReportButton targetType="proof" targetId={item.proof.id} />
           </div>
         ) : (
           <p className="mt-2 text-sm text-neutral-600">No photo yet. Upload a receipt or photo, then cover the sensitive details.</p>
         )}
         {mine && (
           <div className="mt-3">
-            <Button type="button" onClick={onUploadProof}>
+            <Button type="button" className="h-10 w-full" onClick={onUploadProof}>
               <Camera size={16} />
               {item.proof ? "Replace proof photo" : "Upload proof photo"}
             </Button>
-            {error && <p className="mt-2 text-sm text-[#ff5d73]">{error}</p>}
           </div>
         )}
       </div>
       {mine && (
-        <button type="button" className="mt-3 text-xs text-[#ff5d73]" onClick={removeRecord}>
-          Delete record
-        </button>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <Button type="button" variant="outline" className="h-10 w-full" onClick={onEdit}>
+            Edit record
+          </Button>
+          <Button type="button" variant="outline" className="h-10 w-full border-[#ff5d73]/40 text-[#ff5d73] hover:bg-[#ff5d73]/10" onClick={removeRecord}>
+            Remove record
+          </Button>
+        </div>
       )}
+      {error && <p className="mt-2 text-sm text-[#ff5d73]">{error}</p>}
     </article>
   );
 }
@@ -303,6 +299,20 @@ export function PortfolioBoard({
   const [attachProofAfterSave, setAttachProofAfterSave] = useState(false);
   const [proofBusy, setProofBusy] = useState(false);
   const [proofError, setProofError] = useState("");
+
+  function closeEditor() {
+    setAttachProofAfterSave(false);
+    setEditing(null);
+  }
+
+  useEffect(() => {
+    if (!editing) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [editing]);
 
   function startProof() {
     setPickingProof(false);
@@ -353,7 +363,7 @@ export function PortfolioBoard({
       {mine && (
         <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
           <p className="max-w-md text-xs leading-5 text-neutral-500">{DISCLAIMER}</p>
-          <Button type="button" variant="outline" onClick={() => { setAttachProofAfterSave(false); setEditing(editing === "new" ? null : "new"); }}>
+          <Button type="button" variant="outline" onClick={() => { setAttachProofAfterSave(false); setEditing("new"); }}>
             Add holding
           </Button>
         </div>
@@ -378,27 +388,34 @@ export function PortfolioBoard({
           </div>
         </div>
       )}
-      {mine && editing && (
-        <div className="px-4 pb-4">
-          {attachProofAfterSave && editing === "new" && (
-            <p className="mb-3 text-sm text-neutral-600">Save the holding first. The photo editor opens next so you can cover sensitive details.</p>
-          )}
-          <InvestmentEditor
-            initial={editing === "new" ? null : editing}
-            onCancel={() => {
-              setAttachProofAfterSave(false);
-              setEditing(null);
-            }}
-            onSaved={(investment) => {
-              onChange([investment, ...items.filter((item) => item.id !== investment.id)]);
-              setEditing(null);
-              if (attachProofAfterSave) {
-                setAttachProofAfterSave(false);
-                setProofItem(investment);
-              }
-            }}
-          />
-        </div>
+      {mine && editing && createPortal(
+        <div className="fixed inset-0 z-[80] bg-black/70" role="dialog" aria-modal="true" aria-label={editing === "new" ? "Add holding" : "Edit record"}>
+          <button type="button" className="absolute inset-0" aria-label="Close" onClick={closeEditor} />
+          <div className="absolute inset-x-0 bottom-0 top-10 z-10 overflow-y-auto overscroll-contain rounded-t-3xl bg-white px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4 sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[90vh] sm:w-full sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold">{editing === "new" ? "Add holding" : "Edit record"}</h2>
+              <button type="button" className="text-sm text-neutral-500" onClick={closeEditor}>
+                Close
+              </button>
+            </div>
+            {attachProofAfterSave && editing === "new" && (
+              <p className="mb-3 text-sm text-neutral-600">Save the holding first. The photo editor opens next so you can cover sensitive details.</p>
+            )}
+            <InvestmentEditor
+              initial={editing === "new" ? null : editing}
+              onCancel={closeEditor}
+              onSaved={(investment) => {
+                onChange([investment, ...items.filter((item) => item.id !== investment.id)]);
+                setEditing(null);
+                if (attachProofAfterSave) {
+                  setAttachProofAfterSave(false);
+                  setProofItem(investment);
+                }
+              }}
+            />
+          </div>
+        </div>,
+        document.body,
       )}
       {items.length === 0 && (
         <Empty
@@ -412,18 +429,12 @@ export function PortfolioBoard({
             item={item}
             mine={mine}
             onUploadProof={() => setProofItem(item)}
+            onEdit={() => setEditing(item)}
             onChange={(next) => {
               if (!next) onChange(items.filter((row) => row.id !== item.id));
               else onChange(items.map((row) => (row.id === item.id ? next : row)));
             }}
           />
-          {mine && (
-            <div className="px-4 pb-3">
-              <button type="button" className="text-xs text-[#c56a00]" onClick={() => setEditing(item)}>
-                Edit record
-              </button>
-            </div>
-          )}
         </div>
       ))}
       {proofItem && (
