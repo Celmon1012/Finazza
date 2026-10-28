@@ -961,9 +961,16 @@ export const Conversation = {
     return insertConversation(input);
   },
   async updateOne(filter: any, patch: any) {
-    const convo = (await loadConversations({ _id: idOf(filter._id) }, { limit: 1 }))[0];
-    if (!convo) return;
+    const fields: Record<string, unknown> = {};
+    if (typeof patch.$set?.name === "string") fields.name = patch.$set.name;
+    if (typeof patch.$set?.description === "string") fields.description = patch.$set.description;
+    if (Object.keys(fields).length) {
+      const { error } = await table("conversations").update(fields).eq("id", idOf(filter._id));
+      fail(error);
+    }
     if (patch.$set?.members) {
+      const convo = (await loadConversations({ _id: idOf(filter._id) }, { limit: 1 }))[0];
+      if (!convo) return;
       convo.members = patch.$set.members;
       await convo.save();
     }

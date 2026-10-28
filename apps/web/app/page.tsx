@@ -8,8 +8,8 @@ import { useAuth } from "@/lib/auth";
 import { DISCLAIMER } from "@/lib/utils";
 
 const rooms = [
-  ["precious-metals", "Gold, silver, and the receipts people will show."],
   ["stocks-etfs", "Listed shares and funds. Manual records only."],
+  ["derivatives", "Options, futures and other types of derivatives."],
   ["commodities", "Metals, energy, and other physical positions."],
   ["collectibles", "Cards, coins, watches, and art catalogued by hand."],
   ["general", "Everything that does not fit a room yet."],

@@ -272,15 +272,15 @@ export async function seedIfEmpty() {
       slug: "commodities",
       description: "Metals, energy, and other physical positions.",
       createdBy: admin._id,
-      lastMessageAt: daysAgo(4),
-      lastMessageText: "Say the unit. Kg and troy ounces are not the same field.",
     },
     {
       type: "topic",
-      name: "Precious metals",
-      slug: "precious-metals",
-      description: "Gold, silver, and the receipts people are willing to show.",
+      name: "Derivatives",
+      slug: "derivatives",
+      description: "Options, futures and other types of derivatives.",
       createdBy: admin._id,
+      lastMessageAt: daysAgo(4),
+      lastMessageText: "Write the strike, expiry, and contract size with every options or futures position.",
     },
     {
       type: "topic",
@@ -302,34 +302,34 @@ export async function seedIfEmpty() {
     },
   ]);
 
-  const metals = rooms.find((room: { slug?: string }) => room.slug === "precious-metals")!;
-  const metalsMessages = await Message.create([
+  const commodities = rooms.find((room: { slug?: string }) => room.slug === "commodities")!;
+  const commoditiesMessages = await Message.create([
     {
-      conversation: metals._id,
+      conversation: commodities._id,
       author: alex._id,
       text: "Added 5 kg silver bullion, proof uploaded.",
       createdAt: daysAgo(2, 4),
     },
     {
-      conversation: metals._id,
+      conversation: commodities._id,
       author: jordan._id,
       text: "Here is my annotated gold chart from today.",
       imageUrl: chartUrl,
       createdAt: daysAgo(1, 5),
     },
     {
-      conversation: metals._id,
+      conversation: commodities._id,
       author: sam._id,
-      text: "Graded card prices held up well this quarter.",
+      text: "Say the unit. Kg and troy ounces are not the same field.",
       createdAt: daysAgo(0, 3),
     },
   ]);
-  metals.lastMessageAt = metalsMessages[2].createdAt;
-  metals.lastMessageText = metalsMessages[2].text;
-  await metals.save();
+  commodities.lastMessageAt = commoditiesMessages[2].createdAt;
+  commodities.lastMessageText = commoditiesMessages[2].text;
+  await commodities.save();
 
   for (const room of rooms) {
-    if (room.slug === "precious-metals") continue;
+    if (room.slug === "commodities") continue;
     await Message.create({
       conversation: room._id,
       author: admin._id,
@@ -388,7 +388,7 @@ export async function seedIfEmpty() {
       rooms.map((room: { _id: string; slug?: string; lastMessageAt?: Date }) => ({
         user: person._id,
         conversation: room._id,
-        lastReadAt: room.slug === "precious-metals" && String(person._id) === String(alex._id) ? daysAgo(2) : new Date(),
+        lastReadAt: room.slug === "commodities" && String(person._id) === String(alex._id) ? daysAgo(2) : new Date(),
       })),
     );
   }

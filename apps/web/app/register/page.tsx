@@ -9,6 +9,7 @@ import { Button, Field, inputClass } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import type { Me } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 function NameHelp() {
   const [open, setOpen] = useState(false);
@@ -62,11 +63,17 @@ export default function RegisterPage() {
   const { setSession } = useAuth();
   const router = useRouter();
   const [form, setForm] = useState({ displayName: "", username: "", email: "", password: "", acceptedTerms: false });
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const mismatch = confirmPassword.length > 0 && confirmPassword !== form.password;
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
+    if (confirmPassword !== form.password) {
+      setError("The two passwords do not match");
+      return;
+    }
     setBusy(true);
     setError("");
     try {
@@ -124,6 +131,26 @@ export default function RegisterPage() {
           <Field label="Password">
             <input className={inputClass} type="password" autoComplete="new-password" minLength={8} value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} required />
           </Field>
+          <div className="space-y-1.5 text-sm">
+            <label htmlFor="confirm-password" className="text-neutral-600">Confirm password</label>
+            <input
+              id="confirm-password"
+              className={cn(inputClass, mismatch && "border-[#ff5d73]")}
+              type="password"
+              autoComplete="new-password"
+              value={confirmPassword}
+              onChange={(event) => setConfirmPassword(event.target.value)}
+              aria-invalid={mismatch}
+              required
+            />
+            {mismatch ? (
+              <p className="text-xs text-[#ff5d73]">The two passwords do not match.</p>
+            ) : confirmPassword && confirmPassword === form.password ? (
+              <p className="text-xs text-[#1f9d55]">Passwords match.</p>
+            ) : (
+              <p className="text-xs text-neutral-500">Type the same password again.</p>
+            )}
+          </div>
           <label className="flex items-start gap-2 text-sm text-neutral-600">
             <input type="checkbox" className="mt-1" checked={form.acceptedTerms} onChange={(event) => setForm({ ...form, acceptedTerms: event.target.checked })} required />
             <span>
@@ -131,7 +158,7 @@ export default function RegisterPage() {
             </span>
           </label>
           {error && <p className="text-sm text-[#ff5d73]">{error}</p>}
-          <Button type="submit" className="w-full" disabled={busy || !form.acceptedTerms}>
+          <Button type="submit" className="w-full" disabled={busy || !form.acceptedTerms || mismatch}>
             Create account
           </Button>
         </form>

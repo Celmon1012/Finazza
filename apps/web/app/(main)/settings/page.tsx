@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/shell";
 import { Button, Field, AvatarPicker, inputClass } from "@/components/ui";
@@ -19,6 +20,8 @@ const settingLabels = [
 
 export default function SettingsPage() {
   const { user, refreshUser } = useAuth();
+  const router = useRouter();
+  const [savingProfile, setSavingProfile] = useState(false);
   const [profile, setProfile] = useState({ displayName: "", bio: "", location: "", website: "", messagePrivacy: "everyone" as Me["messagePrivacy"] });
   const [settings, setSettings] = useState(user?.notificationSettings);
   const [passwords, setPasswords] = useState({ currentPassword: "", newPassword: "" });
@@ -44,13 +47,16 @@ export default function SettingsPage() {
 
   async function saveProfile(event: React.FormEvent) {
     event.preventDefault();
+    if (!user) return;
     setError("");
+    setSavingProfile(true);
     try {
       await api("/api/users/me", { method: "PATCH", body: JSON.stringify(profile) });
       await refreshUser();
-      setMessage("Profile saved");
+      router.replace(`/u/${user.username}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save");
+      setSavingProfile(false);
     }
   }
 
@@ -107,7 +113,9 @@ export default function SettingsPage() {
             <option value="followers">Only people I follow</option>
           </select>
         </Field>
-        <Button type="submit">Save profile</Button>
+        <Button type="submit" disabled={savingProfile}>
+          {savingProfile ? "Saving..." : "Save profile"}
+        </Button>
       </form>
 
       <section className="border-t border-neutral-200 px-4 py-4">

@@ -3,7 +3,26 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Hash, ImagePlus, Loader2, MessageCircle, Search, Send, SquarePen, Trash2, UserPlus, Users, X } from "lucide-react";
+import {
+  ArrowLeft,
+  Camera,
+  Hash,
+  ImagePlus,
+  Loader2,
+  MessageCircle,
+  Mic,
+  Pause,
+  Pencil,
+  Play,
+  Search,
+  Send,
+  ShieldCheck,
+  SquarePen,
+  Trash2,
+  UserPlus,
+  Users,
+  X,
+} from "lucide-react";
 import { api, mediaUrl } from "@/lib/api";
 import { getSocket, useAuth } from "@/lib/auth";
 import type { ChatMessage, Conversation, PublicUser } from "@/lib/types";
@@ -14,6 +33,14 @@ import { Avatar, Button, inputClass, Modal, Spinner } from "./ui";
 const THREAD_POLL_MS = 3000;
 const LIST_POLL_MS = 10000;
 const GROUP_GAP_MS = 5 * 60 * 1000;
+const MAX_VOICE_MS = 3 * 60 * 1000;
+const MIN_VOICE_MS = 700;
+const VOICE_TYPES = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"];
+
+function formatDuration(ms: number) {
+  const total = Math.max(0, Math.round(ms / 1000));
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
+}
 
 function isPending(message: ChatMessage) {
   return message.id.startsWith("pending-");
@@ -66,6 +93,11 @@ export function ChatView({ activeId }: { activeId?: string }) {
   const [composerMode, setComposerMode] = useState<"dm" | "group" | null>(null);
   const [membersOpen, setMembersOpen] = useState(false);
   const [messagesReady, setMessagesReady] = useState(false);
+  const [canRecord, setCanRecord] = useState(false);
+  const [recordingSince, setRecordingSince] = useState<number | null>(null);
+  const [recordingMs, setRecordingMs] = useState(0);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const discardRecording = useRef(false);
   const bottom = useRef<HTMLDivElement | null>(null);
   const textarea = useRef<HTMLTextAreaElement | null>(null);
   const messagesRef = useRef<ChatMessage[]>([]);
@@ -195,6 +227,22 @@ export function ChatView({ activeId }: { activeId?: string }) {
     field.style.height = `${Math.min(field.scrollHeight, 128)}px`;
   }, [text]);
 
+  useEffect(() => {
+    setCanRecord(typeof MediaRecorder !== "undefined" && Boolean(navigator.mediaDevices?.getUserMedia));
+  }, []);
+
+  useEffect(() => {
+    if (recordingSince == null) return;
+    const timer = window.setInterval(() => {
+      const elapsed = Date.now() - recordingSince;
+      setRecordingMs(elapsed);
+      if (elapsed >= MAX_VOICE_MS) stopRecording(false);
+    }, 200);
+    return () => window.clearInterval(timer);
+  }, [recordingSince]);
+
+  useEffect(() => () => stopRecording(true), [activeId]);
+
   async function send(imageUrl?: string) {
     if (!activeId || (!text.trim() && !imageUrl)) return;
     const body = { text, imageUrl: imageUrl || null };
@@ -204,6 +252,7 @@ export function ChatView({ activeId }: { activeId?: string }) {
       conversationId: activeId,
       text: body.text.trim(),
       imageUrl: body.imageUrl,
+      audioUrl: null,
       deleted: false,
       createdAt: new Date().toISOString(),
       author: user
@@ -245,6 +294,91 @@ export function ChatView({ activeId }: { activeId?: string }) {
     } finally {
       setUploading(false);
     }
+  }
+
+  async function sendVoice(blob: Blob, conversationId: string, durationMs: number) {
+    const localUrl = URL.createObjectURL(blob);
+    const pendingId = `pending-${Date.now()}`;
+    const pending: ChatMessage = {
+      id: pendingId,
+      conversationId,
+      text: "",
+      imageUrl: null,
+      audioUrl: localUrl,
+      audioSeconds: durationMs / 1000,
+      deleted: false,
+      createdAt: new Date().toISOString(),
+      author: user
+        ? { id: user.id, username: user.username, displayName: user.displayName, avatarUrl: user.avatarUrl }
+        : null,
+    };
+    setError("");
+    setMessages((current) => [...current, pending]);
+    try {
+      const form = new FormData();
+      const ext = blob.type.includes("mp4") ? "m4a" : blob.type.includes("ogg") ? "ogg" : "webm";
+      form.append("durationMs", String(Math.round(durationMs)));
+      form.append("file", blob, `voice.${ext}`);
+      const upload = await api<{ url: string }>("/api/uploads/voice", { method: "POST", body: form });
+      const result = await api<{ message: ChatMessage }>(`/api/conversations/${conversationId}/messages`, {
+        method: "POST",
+        body: JSON.stringify({ text: "", audioUrl: upload.url }),
+      });
+      setMessages((current) =>
+        current.filter((item) => item.id !== result.message.id).map((item) => (item.id === pendingId ? result.message : item)),
+      );
+      loadLists().catch(() => undefined);
+    } catch (err) {
+      setMessages((current) => current.filter((item) => item.id !== pendingId));
+      setError(err instanceof Error ? err.message : "Could not send the voice message");
+    } finally {
+      URL.revokeObjectURL(localUrl);
+    }
+  }
+
+  async function startRecording() {
+    if (!activeId || recorderRef.current) return;
+    setError("");
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      setError("Allow microphone access in your browser to record a voice message.");
+      return;
+    }
+    const mimeType = VOICE_TYPES.find((type) => MediaRecorder.isTypeSupported(type));
+    const recorder = new MediaRecorder(stream, mimeType ? { mimeType, audioBitsPerSecond: 48000 } : undefined);
+    const conversationId = activeId;
+    const startedAt = Date.now();
+    const chunks: Blob[] = [];
+    discardRecording.current = false;
+    recorder.ondataavailable = (event) => {
+      if (event.data.size) chunks.push(event.data);
+    };
+    recorder.onstop = () => {
+      stream.getTracks().forEach((track) => track.stop());
+      recorderRef.current = null;
+      setRecordingSince(null);
+      if (discardRecording.current) return;
+      const blob = new Blob(chunks, { type: recorder.mimeType || mimeType || "audio/webm" });
+      const durationMs = Math.min(Date.now() - startedAt, MAX_VOICE_MS);
+      if (durationMs < MIN_VOICE_MS || !blob.size) {
+        setError("That recording was too short. Tap the microphone and speak for at least a second.");
+        return;
+      }
+      sendVoice(blob, conversationId, durationMs).catch(() => undefined);
+    };
+    recorder.start(250);
+    recorderRef.current = recorder;
+    setRecordingSince(startedAt);
+    setRecordingMs(0);
+  }
+
+  function stopRecording(discard: boolean) {
+    const recorder = recorderRef.current;
+    if (!recorder) return;
+    discardRecording.current = discard;
+    if (recorder.state !== "inactive") recorder.stop();
   }
 
   const unread = (items: Conversation[]) => items.reduce((sum, item) => sum + (item.id === activeId ? 0 : item.unreadCount), 0);
@@ -448,7 +582,7 @@ export function ChatView({ activeId }: { activeId?: string }) {
                   className="inline-flex h-9 items-center gap-1.5 rounded-full border border-neutral-200 px-3 text-sm text-neutral-700 transition hover:bg-neutral-50"
                   onClick={() => setMembersOpen(true)}
                 >
-                  <Users size={15} /> Members
+                  <Users size={15} /> Group info
                 </button>
               )}
               {active?.type === "dm" && messagesReady && messages.length === 0 && (
@@ -524,6 +658,43 @@ export function ChatView({ activeId }: { activeId?: string }) {
                   </button>
                 </div>
               )}
+              {recordingSince != null ? (
+                <div className="mx-auto flex max-w-3xl items-center gap-2 rounded-[24px] border border-[#ffc7cf] bg-[#fff5f6] p-1.5" role="status" aria-live="polite">
+                  <button
+                    type="button"
+                    title="Cancel recording"
+                    aria-label="Cancel recording"
+                    className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-neutral-500 transition hover:bg-white hover:text-[#d6334d]"
+                    onClick={() => stopRecording(true)}
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                  <span className="relative grid h-3 w-3 shrink-0 place-items-center">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#ff3b55]/60" />
+                    <span className="relative h-2.5 w-2.5 rounded-full bg-[#ff3b55]" />
+                  </span>
+                  <span className="text-sm font-semibold tabular-nums text-[#d6334d]">{formatDuration(recordingMs)}</span>
+                  <span className="flex h-6 flex-1 items-center gap-[3px] overflow-hidden" aria-hidden>
+                    {Array.from({ length: 28 }, (_, index) => (
+                      <span
+                        key={index}
+                        className="w-[3px] animate-pulse rounded-full bg-[#ff7a8c]"
+                        style={{ height: `${30 + ((index * 37) % 70)}%`, animationDelay: `${(index % 7) * 120}ms` }}
+                      />
+                    ))}
+                  </span>
+                  <span className="hidden text-xs text-neutral-400 sm:inline">max {formatDuration(MAX_VOICE_MS)}</span>
+                  <button
+                    type="button"
+                    title="Send voice message"
+                    aria-label="Send voice message"
+                    className="gold-fill grid h-9 w-9 shrink-0 place-items-center rounded-full shadow-sm transition"
+                    onClick={() => stopRecording(false)}
+                  >
+                    <Send size={16} />
+                  </button>
+                </div>
+              ) : (
               <div className="mx-auto flex max-w-3xl items-end gap-1.5 rounded-[24px] border border-neutral-200 bg-neutral-50 p-1.5 transition focus-within:border-[#f0a020] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#f0a020]/10">
                 <label
                   title="Attach a photo"
@@ -560,15 +731,31 @@ export function ChatView({ activeId }: { activeId?: string }) {
                     }
                   }}
                 />
-                <button
-                  type="submit"
-                  aria-label="Send"
-                  disabled={!canSend}
-                  className="gold-fill grid h-9 w-9 shrink-0 place-items-center rounded-full shadow-sm transition disabled:opacity-40"
-                >
-                  <Send size={16} />
-                </button>
+                {canRecord && !text.trim() ? (
+                  <button
+                    type="button"
+                    title="Record a voice message"
+                    aria-label="Record a voice message"
+                    disabled={uploading}
+                    className="gold-fill grid h-9 w-9 shrink-0 place-items-center rounded-full shadow-sm transition disabled:opacity-40"
+                    onClick={() => {
+                      startRecording().catch((err) => setError(err instanceof Error ? err.message : "Could not start recording"));
+                    }}
+                  >
+                    <Mic size={17} />
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    aria-label="Send"
+                    disabled={!canSend}
+                    className="gold-fill grid h-9 w-9 shrink-0 place-items-center rounded-full shadow-sm transition disabled:opacity-40"
+                  >
+                    <Send size={16} />
+                  </button>
+                )}
               </div>
+              )}
             </form>
           </>
         )}
@@ -586,7 +773,7 @@ export function ChatView({ activeId }: { activeId?: string }) {
         />
       )}
       {membersOpen && active?.type === "group" && (
-        <GroupMembers
+        <GroupInfo
           conversation={active}
           onClose={() => setMembersOpen(false)}
           onChanged={() => loadLists().catch(() => undefined)}
@@ -613,6 +800,7 @@ function ConversationAvatar({ convo, viewerId, size }: { convo: Conversation; vi
     const other = otherMember(convo, viewerId);
     return <Avatar name={other?.displayName || convo.name} url={other?.avatarUrl} size={size} />;
   }
+  if (convo.avatarUrl) return <Avatar name={convo.name} url={convo.avatarUrl} size={size} />;
   const faces = convo.members.filter((member) => member.id !== viewerId).slice(0, 2);
   if (faces.length < 2) {
     return (
@@ -681,6 +869,13 @@ function MessageRow({
                     <img src={mediaUrl(message.imageUrl)} alt="Shared image" className={cn("max-h-72 rounded-2xl object-cover", message.text && "mb-1.5")} />
                   </a>
                 )}
+                {message.audioUrl && (
+                  <VoicePlayer
+                    src={message.audioUrl.startsWith("blob:") ? message.audioUrl : mediaUrl(message.audioUrl)}
+                    seconds={message.audioSeconds ?? savedVoiceSeconds(message.audioUrl)}
+                    mine={mine}
+                  />
+                )}
                 {message.text && <p className="whitespace-pre-wrap break-words text-[15px] leading-[1.35rem]">{message.text}</p>}
               </>
             )}
@@ -701,7 +896,124 @@ function MessageRow({
   );
 }
 
-function GroupMembers({
+function waveform(seed: string, bars: number) {
+  let hash = 0;
+  for (let index = 0; index < seed.length; index += 1) hash = (hash * 31 + seed.charCodeAt(index)) | 0;
+  return Array.from({ length: bars }, (_, index) => {
+    hash = (hash * 1103515245 + 12345 + index) | 0;
+    return 28 + (Math.abs(hash) % 72);
+  });
+}
+
+/** Voice files are saved as name-12s.webm, so the length is known before the file loads. */
+function savedVoiceSeconds(url: string) {
+  const match = url.split("?")[0].match(/-(\d+)s\.(webm|ogg|m4a|mp3|wav)$/i);
+  return match ? Number(match[1]) : undefined;
+}
+
+function VoicePlayer({ src, seconds, mine }: { src: string; seconds?: number; mine: boolean }) {
+  const audio = useRef<HTMLAudioElement | null>(null);
+  const probing = useRef(false);
+  const [playing, setPlaying] = useState(false);
+  const [duration, setDuration] = useState(seconds || 0);
+  const [position, setPosition] = useState(0);
+  const bars = useMemo(() => waveform(src, 30), [src]);
+  const progress = duration > 0 ? Math.min(1, position / duration) : 0;
+
+  function readDuration() {
+    const element = audio.current;
+    if (!element) return;
+    if (Number.isFinite(element.duration) && element.duration > 0) {
+      setDuration(element.duration);
+      if (probing.current) {
+        probing.current = false;
+        element.currentTime = 0;
+      }
+    } else if (seconds) {
+      setDuration(seconds);
+    } else if (!probing.current) {
+      // Recorded WebM files often report no duration until the end has been read.
+      probing.current = true;
+      element.currentTime = 1e101;
+    }
+  }
+
+  function toggle() {
+    const element = audio.current;
+    if (!element) return;
+    if (element.paused) {
+      document.querySelectorAll("audio").forEach((other) => {
+        if (other !== element) other.pause();
+      });
+      element.play().catch(() => undefined);
+    } else {
+      element.pause();
+    }
+  }
+
+  function seek(event: React.MouseEvent<HTMLDivElement>) {
+    const element = audio.current;
+    if (!element || !duration) return;
+    const box = event.currentTarget.getBoundingClientRect();
+    const ratio = Math.min(1, Math.max(0, (event.clientX - box.left) / box.width));
+    element.currentTime = ratio * duration;
+    setPosition(element.currentTime);
+  }
+
+  return (
+    <div className="flex w-60 max-w-full items-center gap-2.5 py-0.5">
+      <button
+        type="button"
+        aria-label={playing ? "Pause voice message" : "Play voice message"}
+        className={cn(
+          "grid h-9 w-9 shrink-0 place-items-center rounded-full transition",
+          mine ? "bg-[#1a1004] text-[#f6b429] hover:bg-black" : "gold-fill shadow-sm",
+        )}
+        onClick={toggle}
+      >
+        {playing ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" className="translate-x-px" />}
+      </button>
+      <div className="min-w-0 flex-1">
+        <div className="flex h-7 cursor-pointer items-center gap-[2px]" onClick={seek} role="presentation">
+          {bars.map((height, index) => {
+            const filled = (index + 0.5) / bars.length <= progress;
+            return (
+              <span
+                key={index}
+                className={cn(
+                  "w-[3px] shrink-0 rounded-full transition-colors",
+                  mine ? (filled ? "bg-[#1a1004]" : "bg-[#1a1004]/30") : filled ? "bg-[#e39b12]" : "bg-neutral-300",
+                )}
+                style={{ height: `${height}%` }}
+              />
+            );
+          })}
+        </div>
+        <p className={cn("mt-0.5 text-[11px] tabular-nums", mine ? "text-[#1a1004]/70" : "text-neutral-500")}>
+          {playing || position > 0 ? formatDuration(position * 1000) : duration ? formatDuration(duration * 1000) : "Voice message"}
+        </p>
+      </div>
+      <audio
+        ref={audio}
+        src={src}
+        preload="metadata"
+        onLoadedMetadata={readDuration}
+        onDurationChange={readDuration}
+        onTimeUpdate={() => {
+          if (!probing.current && audio.current) setPosition(audio.current.currentTime);
+        }}
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onEnded={() => {
+          setPlaying(false);
+          setPosition(0);
+        }}
+      />
+    </div>
+  );
+}
+
+function GroupInfo({
   conversation,
   onClose,
   onChanged,
@@ -709,20 +1021,33 @@ function GroupMembers({
 }: {
   conversation: Conversation;
   onClose: () => void;
-  onChanged: () => void;
+  onChanged: () => Promise<void>;
   onLeft: () => void;
 }) {
   const { user } = useAuth();
   const [username, setUsername] = useState("");
+  const [name, setName] = useState(conversation.name);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const isAdmin = conversation.members.some((member) => member.id === user?.id && member.role === "admin");
+  const members = [...conversation.members].sort((left, right) => {
+    if (left.role !== right.role) return left.role === "admin" ? -1 : 1;
+    return left.displayName.localeCompare(right.displayName);
+  });
 
-  async function run(task: () => Promise<void>) {
+  useEffect(() => {
+    setName(conversation.name);
+  }, [conversation.name]);
+
+  async function run(task: () => Promise<void>, done?: string) {
     setBusy(true);
     setError("");
+    setNotice("");
     try {
       await task();
+      await onChanged();
+      if (done) setNotice(done);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -730,74 +1055,182 @@ function GroupMembers({
     }
   }
 
+  function updateGroup(patch: { name?: string; avatarUrl?: string | null }, done: string) {
+    return run(async () => {
+      await api(`/api/conversations/${conversation.id}`, { method: "PATCH", body: JSON.stringify(patch) });
+    }, done);
+  }
+
+  function changePhoto(file: File) {
+    return run(async () => {
+      const form = new FormData();
+      form.append("files", file);
+      const upload = await api<{ files: { url: string }[] }>("/api/uploads", { method: "POST", body: form });
+      await api(`/api/conversations/${conversation.id}`, { method: "PATCH", body: JSON.stringify({ avatarUrl: upload.files[0]?.url }) });
+    }, "Group photo updated.");
+  }
+
+  function setRole(member: Conversation["members"][number], role: "admin" | "member") {
+    return run(
+      async () => {
+        await api(`/api/conversations/${conversation.id}/members/${member.username}/role`, { method: "POST", body: JSON.stringify({ role }) });
+      },
+      role === "admin" ? `${member.displayName} is now an admin.` : `${member.displayName} is no longer an admin.`,
+    );
+  }
+
   return (
-    <Modal title={`${conversation.name} · ${conversation.memberCount} members`} onClose={onClose}>
-      {isAdmin && (
-        <form
-          className="mb-4 flex gap-2"
-          onSubmit={(event) => {
-            event.preventDefault();
-            run(async () => {
-              await api(`/api/conversations/${conversation.id}/members`, { method: "POST", body: JSON.stringify({ username }) });
-              setUsername("");
-              onChanged();
-            });
-          }}
-        >
-          <input className={inputClass} placeholder="Add by @username" value={username} onChange={(event) => setUsername(event.target.value.replace("@", ""))} required />
-          <Button type="submit" disabled={busy} className="shrink-0">
-            <UserPlus size={15} /> Add
-          </Button>
-        </form>
-      )}
-      <ul className="max-h-72 space-y-1 overflow-y-auto">
-        {conversation.members.map((member) => (
-          <li key={member.id} className="flex items-center gap-3 rounded-xl px-2 py-2">
-            <Avatar name={member.displayName} url={member.avatarUrl} size={36} />
-            <div className="min-w-0 flex-1">
-              <Link href={`/u/${member.username}`} className="block truncate text-sm font-semibold hover:underline">
-                {member.displayName}
-                {member.id === user?.id && <span className="font-normal text-neutral-500"> (you)</span>}
-              </Link>
-              <p className="truncate text-xs text-neutral-500">@{member.username}</p>
+    <Modal title="Group info" onClose={onClose}>
+      <div className="-mx-1 max-h-[72dvh] overflow-y-auto px-1">
+        <div className="flex flex-col items-center text-center">
+          <ConversationAvatar convo={conversation} viewerId={user?.id} size={84} />
+          {isAdmin ? (
+            <div className="mt-3 flex flex-wrap justify-center gap-2">
+              <label className={cn("inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full border border-neutral-300 px-3 text-sm hover:bg-neutral-100", busy && "pointer-events-none opacity-50")}>
+                <Camera size={15} />
+                {conversation.avatarUrl ? "Change group photo" : "Add group photo"}
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="hidden"
+                  disabled={busy}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    event.target.value = "";
+                    if (file) changePhoto(file).catch(() => undefined);
+                  }}
+                />
+              </label>
+              {conversation.avatarUrl && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-full border border-neutral-300 px-3 text-sm text-neutral-700 hover:text-[#d6334d] disabled:opacity-50"
+                  onClick={() => updateGroup({ avatarUrl: null }, "Group photo removed.").catch(() => undefined)}
+                >
+                  <X size={15} /> Remove photo
+                </button>
+              )}
             </div>
-            {member.role === "admin" && <span className="rounded-full bg-[#fff4e0] px-2 py-0.5 text-xs font-medium text-[#a35400]">Admin</span>}
-            {isAdmin && member.id !== user?.id && (
-              <button
-                type="button"
-                className="text-xs text-neutral-500 hover:text-[#ff5d73]"
-                disabled={busy}
-                onClick={() =>
-                  run(async () => {
-                    await api(`/api/conversations/${conversation.id}/members/${member.username}`, { method: "DELETE" });
-                    onChanged();
-                  })
-                }
-              >
-                Remove
-              </button>
-            )}
-          </li>
-        ))}
-      </ul>
-      {error && <p className="mt-3 text-sm text-[#ff5d73]">{error}</p>}
-      <p className="mt-3 text-xs text-neutral-500">Groups hold up to 50 members.</p>
-      {user && (
-        <Button
-          type="button"
-          variant="outline"
-          className="mt-4 w-full text-[#d6334d]"
-          disabled={busy}
-          onClick={() =>
-            run(async () => {
-              await api(`/api/conversations/${conversation.id}/members/${user.username}`, { method: "DELETE" });
-              onLeft();
-            })
-          }
-        >
-          Leave group
-        </Button>
-      )}
+          ) : (
+            <p className="mt-3 text-lg font-semibold">{conversation.name}</p>
+          )}
+          <p className="mt-1 text-xs text-neutral-500">
+            {conversation.memberCount} members · up to 50{isAdmin ? "" : " · only admins can change the name and photo"}
+          </p>
+        </div>
+
+        {isAdmin && (
+          <form
+            className="mt-5"
+            onSubmit={(event) => {
+              event.preventDefault();
+              updateGroup({ name: name.trim() }, "Group name saved.").catch(() => undefined);
+            }}
+          >
+            <label htmlFor="group-name" className="text-sm text-neutral-600">Group name</label>
+            <div className="mt-1.5 flex gap-2">
+              <input id="group-name" className={inputClass} maxLength={40} value={name} onChange={(event) => setName(event.target.value)} required />
+              <Button type="submit" className="shrink-0" disabled={busy || !name.trim() || name.trim() === conversation.name}>
+                <Pencil size={14} /> Save
+              </Button>
+            </div>
+          </form>
+        )}
+
+        {isAdmin && (
+          <form
+            className="mt-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              run(async () => {
+                await api(`/api/conversations/${conversation.id}/members`, { method: "POST", body: JSON.stringify({ username }) });
+                setUsername("");
+              }, "Member added.").catch(() => undefined);
+            }}
+          >
+            <label htmlFor="group-add" className="text-sm text-neutral-600">Add a member</label>
+            <div className="mt-1.5 flex gap-2">
+              <input id="group-add" className={inputClass} placeholder="@username" value={username} onChange={(event) => setUsername(event.target.value.replace("@", ""))} required />
+              <Button type="submit" disabled={busy} className="shrink-0">
+                <UserPlus size={15} /> Add
+              </Button>
+            </div>
+          </form>
+        )}
+
+        {(error || notice) && (
+          <p className={cn("mt-3 rounded-xl px-3 py-2 text-sm", error ? "bg-[#fff0f2] text-[#d6334d]" : "bg-[#effaf3] text-[#1f7a45]")}>{error || notice}</p>
+        )}
+
+        <h3 className="mt-5 text-sm font-semibold text-neutral-800">Members</h3>
+        <ul className="mt-2 divide-y divide-neutral-100">
+          {members.map((member) => {
+            const self = member.id === user?.id;
+            return (
+              <li key={member.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 py-2.5">
+                <Avatar name={member.displayName} url={member.avatarUrl} size={38} />
+                <div className="min-w-0 flex-1">
+                  <Link href={`/u/${member.username}`} className="flex items-center gap-1.5 text-sm font-semibold hover:underline">
+                    <span className="truncate">{member.displayName}</span>
+                    {self && <span className="shrink-0 font-normal text-neutral-500">(you)</span>}
+                  </Link>
+                  <p className="truncate text-xs text-neutral-500">@{member.username}</p>
+                </div>
+                {member.role === "admin" && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#fff4e0] px-2 py-0.5 text-xs font-medium text-[#a35400]">
+                    <ShieldCheck size={12} /> Admin
+                  </span>
+                )}
+                {isAdmin && !self && (
+                  <div className="flex w-full justify-end gap-1.5 sm:w-auto">
+                    <button
+                      type="button"
+                      disabled={busy}
+                      className="h-8 rounded-full border border-neutral-200 px-3 text-xs font-medium text-neutral-700 transition hover:bg-neutral-100 disabled:opacity-50"
+                      onClick={() => setRole(member, member.role === "admin" ? "member" : "admin").catch(() => undefined)}
+                    >
+                      {member.role === "admin" ? "Remove admin" : "Make admin"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      className="h-8 rounded-full border border-neutral-200 px-3 text-xs font-medium text-neutral-700 transition hover:border-[#ffc7cf] hover:bg-[#fff5f6] hover:text-[#d6334d] disabled:opacity-50"
+                      onClick={() => {
+                        if (!window.confirm(`Remove ${member.displayName} from ${conversation.name}?`)) return;
+                        run(async () => {
+                          await api(`/api/conversations/${conversation.id}/members/${member.username}`, { method: "DELETE" });
+                        }, `${member.displayName} was removed.`).catch(() => undefined);
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+
+        {user && (
+          <Button
+            type="button"
+            variant="outline"
+            className="mt-4 w-full text-[#d6334d]"
+            disabled={busy}
+            onClick={() => {
+              if (!window.confirm(`Leave ${conversation.name}?`)) return;
+              setBusy(true);
+              api(`/api/conversations/${conversation.id}/members/${user.username}`, { method: "DELETE" })
+                .then(onLeft)
+                .catch((err) => setError(err instanceof Error ? err.message : "Could not leave the group"))
+                .finally(() => setBusy(false));
+            }}
+          >
+            Leave group
+          </Button>
+        )}
+      </div>
     </Modal>
   );
 }

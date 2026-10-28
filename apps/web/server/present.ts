@@ -1,6 +1,7 @@
 import { PROOF_LABEL } from "./config.js";
 import { Like, Proof, Repost } from "./models.js";
 import { comparisonNote, snapshotLabel } from "./social.js";
+import { isAudioUrl } from "./storage.js";
 
 export function authorMini(user: any) {
   if (!user) return null;
@@ -145,11 +146,14 @@ export async function investmentDto(record: any) {
 }
 
 export function messageDto(message: any) {
+  const media = message.deleted ? null : message.imageUrl || null;
+  const voice = isAudioUrl(media);
   return {
     id: String(message._id),
     conversationId: String(message.conversation?._id || message.conversation),
     text: message.deleted ? "" : message.text || "",
-    imageUrl: message.deleted ? null : message.imageUrl,
+    imageUrl: voice ? null : media,
+    audioUrl: voice ? media : null,
     deleted: Boolean(message.deleted),
     createdAt: message.createdAt,
     author: authorMini(message.author),

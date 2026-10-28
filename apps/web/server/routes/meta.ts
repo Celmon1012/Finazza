@@ -8,7 +8,7 @@ import { Conversation, Message, Notification, Post, Proof, Report, User, sameId 
 import { createNotification } from "../notify.js";
 import { authorMini, notificationDto, postPopulate, presentPosts, savedPostIds } from "../present.js";
 import { escapeRegex } from "../social.js";
-import { saveUpload } from "../storage.js";
+import { saveAudio, saveUpload } from "../storage.js";
 
 const router = Router();
 
@@ -38,6 +38,23 @@ router.post(
       saved.push({ url: image.url, kind: "image" as const });
     }
     res.status(201).json({ files: saved });
+  }),
+);
+
+const voiceUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 4 * 1024 * 1024, files: 1 },
+});
+
+router.post(
+  "/uploads/voice",
+  requireAuth,
+  uploadLimiter,
+  voiceUpload.single("file"),
+  wrap(async (req, res) => {
+    if (!req.file) throw new HttpError(400, "Record a voice message first");
+    const saved = await saveAudio(req.file.buffer, Number(req.body?.durationMs) / 1000);
+    res.status(201).json({ url: saved.url });
   }),
 );
 

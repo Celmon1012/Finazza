@@ -102,6 +102,7 @@ export type Conversation = {
   name: string;
   slug: string | null;
   description: string;
+  avatarUrl: string | null;
   members: (PublicUser & { role: "admin" | "member" })[];
   memberCount: number | null;
   unreadCount: number;
@@ -114,6 +115,9 @@ export type ChatMessage = {
   conversationId: string;
   text: string;
   imageUrl: string | null;
+  audioUrl: string | null;
+  /** Only set on a voice message that is still uploading. */
+  audioSeconds?: number;
   deleted: boolean;
   createdAt: string;
   author: PublicUser | null;

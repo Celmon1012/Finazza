@@ -8,7 +8,7 @@ import { Conversation, Message, ReadState, User, sameId } from "../models.js";
 import { createNotification, getIO } from "../notify.js";
 import { authorMini, messageDto } from "../present.js";
 import { assertCleanText, canMessage, escapeRegex, extractMentions } from "../social.js";
-import { isStoredFileUrl } from "../storage.js";
+import { deletePublicFile, isAudioUrl, isStoredFileUrl } from "../storage.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -49,6 +49,18 @@ async function unreadCount(convo: any, userId: unknown) {
   });
 }
 
+/** Groups have no description, so their description column holds the group photo address. */
+function groupPhoto(convo: any): string | null {
+  if (convo.type !== "group") return null;
+  const value = String(convo.description || "");
+  return value && isStoredFileUrl(value) ? value : null;
+}
+
+function assertGroupAdmin(convo: any, userId: unknown) {
+  if (convo.type !== "group") throw new HttpError(400, "Only group chats have admins");
+  if (memberRole(convo, userId) !== "admin") throw new HttpError(403, "Only a group admin can do that");
+}
+
 function conversationName(convo: any, viewerId: unknown) {
   if (convo.type !== "dm") return convo.name;
   const other = convo.members.find((member: any) => !sameId(member.user?._id || member.user, viewerId));
@@ -60,12 +72,14 @@ async function presentConversation(convo: any, viewerId: unknown) {
     ...authorMini(member.user),
     role: member.role,
   }));
+  const photo = groupPhoto(convo);
   return {
     id: String(convo._id),
     type: convo.type,
     name: conversationName(convo, viewerId),
     slug: convo.slug,
-    description: convo.description || "",
+    description: convo.type === "group" ? "" : convo.description || "",
+    avatarUrl: photo,
     members,
     memberCount: convo.type === "topic" ? null : members.length,
     unreadCount: await unreadCount(convo, viewerId),
@@ -189,10 +203,19 @@ router.post(
     const body = z
       .object({
         text: z.string().trim().max(1000).default(""),
-        imageUrl: z.string().refine(isStoredFileUrl, "That image is not one of your uploads").nullable().optional(),
+        imageUrl: z
+          .string()
+          .refine((url) => isStoredFileUrl(url) && !isAudioUrl(url), "That image is not one of your uploads")
+          .nullable()
+          .optional(),
+        audioUrl: z
+          .string()
+          .refine((url) => isStoredFileUrl(url) && isAudioUrl(url), "That voice message is not one of your uploads")
+          .nullable()
+          .optional(),
       })
       .parse(req.body);
-    if (!body.text && !body.imageUrl) throw new HttpError(400, "Write a message or attach an image");
+    if (!body.text && !body.imageUrl && !body.audioUrl) throw new HttpError(400, "Write a message, attach an image, or record a voice message");
     if (body.text) assertCleanText(body.text);
 
     const convo = await loadConversation(req.params.id);
@@ -212,11 +235,11 @@ router.post(
       conversation: convo._id,
       author: req.user!._id,
       text: body.text,
-      imageUrl: body.imageUrl || null,
+      imageUrl: body.audioUrl || body.imageUrl || null,
     });
     message.author = req.user;
     convo.lastMessageAt = message.createdAt;
-    convo.lastMessageText = body.text || "Sent an image";
+    convo.lastMessageText = body.text || (body.audioUrl ? "Sent a voice message" : "Sent an image");
     await Promise.all([
       convo.save(),
       ReadState.findOneAndUpdate(
@@ -291,13 +314,64 @@ router.post(
   }),
 );
 
+router.patch(
+  "/:id",
+  wrap(async (req, res) => {
+    const body = z
+      .object({
+        name: z.string().trim().min(1, "Name the group").max(40).optional(),
+        avatarUrl: z
+          .string()
+          .refine((url) => isStoredFileUrl(url) && !isAudioUrl(url), "That photo is not one of your uploads")
+          .nullable()
+          .optional(),
+      })
+      .parse(req.body);
+    const convo = await loadConversation(req.params.id);
+    assertGroupAdmin(convo, req.user!._id);
+    if (body.name) assertCleanText(body.name);
+
+    const previousPhoto = groupPhoto(convo);
+    const $set: Record<string, string> = {};
+    if (body.name !== undefined) $set.name = body.name;
+    if (body.avatarUrl !== undefined) $set.description = body.avatarUrl || "";
+    if (Object.keys($set).length) await Conversation.updateOne({ _id: convo._id }, { $set });
+    if (body.avatarUrl !== undefined && previousPhoto && previousPhoto !== body.avatarUrl) {
+      await deletePublicFile(previousPhoto).catch(() => undefined);
+    }
+
+    const updated = await loadConversation(req.params.id);
+    res.json({ conversation: await presentConversation(updated, req.user!._id) });
+  }),
+);
+
+router.post(
+  "/:id/members/:username/role",
+  wrap(async (req, res) => {
+    const body = z.object({ role: z.enum(["admin", "member"]) }).parse(req.body);
+    const convo = await loadConversation(req.params.id);
+    assertGroupAdmin(convo, req.user!._id);
+    const target = convo.members.find((member: any) => member.user?.username === req.params.username.toLowerCase());
+    if (!target) throw new HttpError(404, "That person is not in this group");
+    const targetId = target.user?._id || target.user;
+    const members = convo.members.map((member: any) => ({
+      user: member.user?._id || member.user,
+      role: sameId(member.user?._id || member.user, targetId) ? body.role : member.role,
+    }));
+    if (!members.some((member: any) => member.role === "admin")) throw new HttpError(400, "A group needs at least one admin");
+    await Conversation.updateOne({ _id: convo._id }, { $set: { members } });
+    const updated = await loadConversation(req.params.id);
+    res.json({ conversation: await presentConversation(updated, req.user!._id) });
+  }),
+);
+
 router.post(
   "/:id/members",
   wrap(async (req, res) => {
     const body = z.object({ username: z.string().trim().toLowerCase() }).parse(req.body);
     const convo = await loadConversation(req.params.id);
     if (convo.type !== "group") throw new HttpError(400, "Only group chats can be invited into");
-    if (memberRole(convo, req.user!._id) !== "admin") throw new HttpError(403, "Only the group admin can add people");
+    if (memberRole(convo, req.user!._id) !== "admin") throw new HttpError(403, "Only a group admin can add people");
     if (convo.members.length >= GROUP_MEMBER_LIMIT) throw new HttpError(400, `Groups are limited to ${GROUP_MEMBER_LIMIT} members`);
     const person = await User.findOne({ username: body.username, suspended: false });
     if (!person) throw new HttpError(404, "User not found");
@@ -331,13 +405,14 @@ router.delete(
     const target = await User.findOne({ username: req.params.username.toLowerCase() });
     if (!target) throw new HttpError(404, "User not found");
     const isSelf = sameId(target._id, req.user!._id);
-    if (!isSelf && memberRole(convo, req.user!._id) !== "admin") throw new HttpError(403, "Only the group admin can remove people");
+    if (!isSelf && memberRole(convo, req.user!._id) !== "admin") throw new HttpError(403, "Only a group admin can remove people");
     const remaining = convo.members
       .filter((member: any) => !sameId(member.user?._id || member.user, target._id))
       .map((member: any) => ({ user: member.user?._id || member.user, role: member.role }));
     if (!remaining.length) {
       await Message.deleteMany({ conversation: convo._id });
       await convo.deleteOne();
+      await deletePublicFile(groupPhoto(convo)).catch(() => undefined);
       res.json({ ok: true, deleted: true });
       return;
     }

@@ -250,7 +250,7 @@ insert into public.conversations (id, type, name, slug, description, created_by)
 values
   ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1', 'topic', 'Stocks & ETFs', 'stocks-etfs', 'Listed shares and funds. Manual records only.', '11111111-1111-4111-8111-111111111111'),
   ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2', 'topic', 'Commodities', 'commodities', 'Metals, energy, and other physical positions.', '11111111-1111-4111-8111-111111111111'),
-  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa3', 'topic', 'Precious metals', 'precious-metals', 'Gold, silver, and the receipts people are willing to show.', '11111111-1111-4111-8111-111111111111'),
+  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa6', 'topic', 'Derivatives', 'derivatives', 'Options, futures and other types of derivatives.', '11111111-1111-4111-8111-111111111111'),
   ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa4', 'topic', 'Collectibles', 'collectibles', 'Cards, coins, watches, and anything catalogued by hand.', '11111111-1111-4111-8111-111111111111'),
   ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa5', 'topic', 'General', 'general', 'Everything that does not fit a room yet.', '11111111-1111-4111-8111-111111111111')
 on conflict (id) do nothing;

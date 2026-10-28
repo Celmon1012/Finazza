@@ -43,7 +43,7 @@ Password for every account: `password123`
 
 These were open questions in the roadmap. They are implemented so the app can be reviewed, and they are easy to change.
 
-- Launch rooms: Stocks & ETFs, Commodities, Precious metals, Collectibles, General. Admins can add more.
+- Launch rooms: Stocks & ETFs, Derivatives, Commodities, Collectibles, General. Admins can add more.
 - Direct messages and invites: everyone, unless the recipient chooses “only people I follow”.
 - Group chats: 50 members. The creator is the admin and can add or remove people. Anyone can leave.
 - Collectible categories: trading card, coin, watch, art, other.

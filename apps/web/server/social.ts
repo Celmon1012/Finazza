@@ -70,9 +70,6 @@ export function snapshotLabel(input: {
     const priceUnit = input.priceUnit.toLowerCase() === "troy oz" ? "oz" : input.priceUnit;
     return `${input.assetName} ${trimNum(input.quantity)} ${input.unit} • ${priced(input.buyPrice, input.buyPriceApproximate)}/${priceUnit}`;
   }
-  if (input.recordType === "holding" && input.assetClass === "collectible") {
-    return `${input.assetName} • holding`;
-  }
   if (input.recordType === "holding") {
     return `${input.assetName} • bought ${priced(input.buyPrice, input.buyPriceApproximate)}`;
   }

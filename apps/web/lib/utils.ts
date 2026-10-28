@@ -40,4 +40,4 @@ export function dateInput(iso?: string | null) {
 }
 
 export const DISCLAIMER =
-  "Posts are user opinions, not financial advice. Proof is user-submitted and is not verified by FINAZZA.";
+  "Posts are user opinions, not financial advice. Proof of investment is user-submitted and is not verified by FINAZZA.";

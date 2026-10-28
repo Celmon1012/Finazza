@@ -3,6 +3,7 @@ import path from "path";
 import { randomUUID } from "crypto";
 import { PDFDocument } from "pdf-lib";
 import { config } from "./config.js";
+import { HttpError } from "./http.js";
 import { sb } from "./supabase.js";
 
 async function loadSharp() {
@@ -30,6 +31,28 @@ function sniffImage(buffer: Buffer) {
 
 function isHeic(buffer: Buffer) {
   return buffer.length >= 12 && buffer.subarray(4, 8).toString() === "ftyp" && /heic|heif|mif1/i.test(buffer.subarray(8, 16).toString());
+}
+
+const AUDIO_FILE = /\.(webm|ogg|m4a|mp3|wav)$/i;
+
+/** Chat messages keep voice recordings in the same column as images, so the file extension tells them apart. */
+export function isAudioUrl(url: string | null | undefined) {
+  return Boolean(url && AUDIO_FILE.test(url.split("?")[0]));
+}
+
+function sniffAudio(buffer: Buffer) {
+  if (buffer.length >= 4 && buffer[0] === 0x1a && buffer[1] === 0x45 && buffer[2] === 0xdf && buffer[3] === 0xa3) {
+    return { ext: "webm", mime: "audio/webm" };
+  }
+  if (buffer.length >= 4 && buffer.subarray(0, 4).toString() === "OggS") return { ext: "ogg", mime: "audio/ogg" };
+  if (buffer.length >= 12 && buffer.subarray(4, 8).toString() === "ftyp" && !isHeic(buffer)) return { ext: "m4a", mime: "audio/mp4" };
+  if (buffer.length >= 12 && buffer.subarray(0, 4).toString() === "RIFF" && buffer.subarray(8, 12).toString() === "WAVE") {
+    return { ext: "wav", mime: "audio/wav" };
+  }
+  if (buffer.length >= 3 && (buffer.subarray(0, 3).toString() === "ID3" || (buffer[0] === 0xff && (buffer[1] & 0xe0) === 0xe0))) {
+    return { ext: "mp3", mime: "audio/mpeg" };
+  }
+  return null;
 }
 
 export async function ensureUploadDir() {
@@ -134,6 +157,15 @@ export async function saveUpload(buffer: Buffer, mimeType: string, allowPdf: boo
   if (IMAGE_TYPES.has(mime) || sniffImage(buffer) || isHeic(buffer)) return saveImage(buffer);
   if (allowPdf && mime === "application/pdf") return savePdf(buffer);
   throw new Error(allowPdf ? "Upload an image or PDF" : "Upload an image");
+}
+
+/** The length is kept in the file name because recorded WebM files do not report it until fully downloaded. */
+export async function saveAudio(buffer: Buffer, seconds?: number) {
+  const kind = sniffAudio(buffer);
+  if (!kind) throw new HttpError(400, "That voice recording could not be read. Try recording again.");
+  const length = seconds && Number.isFinite(seconds) ? `-${Math.min(600, Math.max(1, Math.round(seconds)))}s` : "";
+  const filename = `${randomUUID()}${length}.${kind.ext}`;
+  return { url: await writeBuffer(filename, buffer, kind.mime), mimeType: kind.mime };
 }
 
 export async function saveSvgImage(svg: string) {
