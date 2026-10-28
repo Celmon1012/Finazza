@@ -267,28 +267,26 @@ export function ChatView({ activeId }: { activeId?: string }) {
           : "min-h-[calc(100dvh-6rem)] md:-mb-24 md:h-[calc(100dvh-4.75rem-env(safe-area-inset-bottom))] lg:mb-0 lg:h-dvh",
       )}
     >
-      <section className={cn("flex w-full min-h-0 flex-col border-neutral-200 md:w-[320px] md:shrink-0 md:border-r xl:w-[340px]", showThread && "hidden md:flex")}>
+      <section className={cn("flex w-full min-h-0 flex-col border-neutral-200 md:w-[360px] md:shrink-0 md:border-r xl:w-[380px]", showThread && "hidden md:flex")}>
         <div className="sticky top-0 z-10 space-y-3 border-b border-neutral-100 bg-white/95 px-4 pb-3 pt-4 backdrop-blur">
           <div className="flex items-center justify-between gap-2">
-            <h1 className="text-xl font-bold tracking-tight">Messages</h1>
-            <div className="flex items-center gap-1">
+            <h1 className="truncate text-xl font-bold tracking-tight">Messages</h1>
+            <div className="flex shrink-0 items-center gap-1.5">
               <button
                 type="button"
-                title="New group"
-                aria-label="New group"
-                className="grid h-9 w-9 place-items-center rounded-full text-neutral-600 transition hover:bg-neutral-100 hover:text-neutral-950"
+                className="inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-full border border-neutral-200 px-2.5 text-[13px] font-medium text-neutral-700 transition hover:bg-neutral-100 hover:text-neutral-950"
                 onClick={() => setComposerMode("group")}
               >
-                <Users size={18} />
+                <Users size={15} />
+                New Group
               </button>
               <button
                 type="button"
-                title="New message"
-                aria-label="New message"
-                className="gold-fill grid h-9 w-9 place-items-center rounded-full shadow-sm transition"
+                className="gold-fill inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 text-[13px] font-semibold shadow-sm transition"
                 onClick={() => setComposerMode("dm")}
               >
-                <SquarePen size={17} />
+                <SquarePen size={14} />
+                New Message
               </button>
             </div>
           </div>
@@ -316,7 +314,7 @@ export function ChatView({ activeId }: { activeId?: string }) {
           <label className="flex items-center gap-2 rounded-full border border-neutral-200 bg-neutral-50 px-3 transition focus-within:border-[#f0a020] focus-within:bg-white">
             <Search size={15} className="shrink-0 text-neutral-400" />
             <input
-              className="h-9 w-full bg-transparent text-sm outline-none placeholder:text-neutral-400"
+              className="h-9 w-full bg-transparent text-sm outline-none placeholder:text-neutral-400 focus-visible:shadow-none"
               placeholder={scope === "topic" ? "Search rooms" : "Search people and groups"}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
@@ -343,7 +341,7 @@ export function ChatView({ activeId }: { activeId?: string }) {
               </p>
               {!needle && scope === "inbox" && (
                 <Button type="button" className="mt-4" onClick={() => setComposerMode("dm")}>
-                  <SquarePen size={15} /> New message
+                  <SquarePen size={15} /> New Message
                 </Button>
               )}
             </div>
@@ -410,10 +408,10 @@ export function ChatView({ activeId }: { activeId?: string }) {
               </p>
               <div className="mt-5 flex justify-center gap-2">
                 <Button type="button" onClick={() => setComposerMode("dm")}>
-                  <SquarePen size={15} /> New message
+                  <SquarePen size={15} /> New Message
                 </Button>
                 <Button type="button" variant="outline" onClick={() => setComposerMode("group")}>
-                  <Users size={15} /> New group
+                  <Users size={15} /> New Group
                 </Button>
               </div>
             </div>
@@ -550,7 +548,7 @@ export function ChatView({ activeId }: { activeId?: string }) {
                 <textarea
                   ref={textarea}
                   rows={1}
-                  className="max-h-32 min-h-9 flex-1 resize-none bg-transparent px-1 py-2 text-[15px] leading-5 outline-none placeholder:text-neutral-400"
+                  className="max-h-32 min-h-9 flex-1 resize-none bg-transparent px-1 py-2 text-[15px] leading-5 outline-none placeholder:text-neutral-400 focus-visible:shadow-none"
                   placeholder={active?.type === "topic" ? `Message #${active.slug}` : active ? `Message ${active.name}` : "Message"}
                   value={text}
                   maxLength={1000}
@@ -858,7 +856,7 @@ function StartChat({
   }
 
   return (
-    <Modal title={mode === "dm" ? "New message" : "New group"} onClose={onClose}>
+    <Modal title={mode === "dm" ? "New Message" : "New Group"} onClose={onClose}>
       <form
         className="space-y-3"
         onSubmit={(event) => {
@@ -868,9 +866,9 @@ function StartChat({
       >
         {mode === "group" && <input className={inputClass} placeholder="Group name" value={name} onChange={(event) => setName(event.target.value)} required />}
         {mode === "dm" ? (
-          <label className="flex items-center gap-2 rounded-xl border border-neutral-200 px-3 focus-within:border-[#f0a020]">
-            <Search size={16} className="text-neutral-400" />
-            <input className="h-11 w-full bg-transparent text-sm outline-none" placeholder="Search by name or @username" value={username} onChange={(event) => setUsername(event.target.value)} autoFocus required />
+          <label className="flex items-center gap-2 rounded-xl border border-neutral-200 px-3 transition focus-within:border-[#f0a020] focus-within:ring-4 focus-within:ring-[#f0a020]/10">
+            <Search size={16} className="shrink-0 text-neutral-400" />
+            <input className="h-11 w-full bg-transparent text-sm outline-none placeholder:text-neutral-400 focus-visible:shadow-none" placeholder="Search by name or @username" value={username} onChange={(event) => setUsername(event.target.value)} autoFocus required />
           </label>
         ) : (
           <input className={inputClass} placeholder="Usernames, separated by commas" value={people} onChange={(event) => setPeople(event.target.value)} />

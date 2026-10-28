@@ -16,9 +16,17 @@ const rooms = [
 ];
 
 const steps = [
-  ["01", "Write the position", "A holding or a closed trade, in shares, kilograms, ounces, or a single graded card."],
-  ["02", "Show the proof", "Upload a receipt or photo. The label stays public: not verified by the platform."],
-  ["03", "Stay in the room", "Topic rooms, direct messages, and groups of up to 50. Follow the people whose records you trust."],
+  ["1", "Write down your positions", "Enter your closed trade and current portfolio into your investment profile."],
+  [
+    "2",
+    "Show the proof of investment",
+    "Upload a receipt or any photo that proves your investment. The proof stays public and therefore can be viewed by everyone.",
+  ],
+  [
+    "3",
+    "Stay in the chatroom",
+    "One-to-one direct messages, group messages and messages in topical chatroom. Tell people your ideas about the market right now.",
+  ],
 ];
 
 export default function LandingPage() {
@@ -72,20 +80,6 @@ export default function LandingPage() {
                 Open a demo account
               </Link>
             </div>
-            <dl className="mt-10 grid max-w-lg grid-cols-3 gap-4 border-t border-[#f0e6d8] pt-6 text-sm">
-              <div>
-                <dt className="font-serif text-2xl">Any unit</dt>
-                <dd className="mt-1 text-[#6b6258]">Shares, kg, oz, cards</dd>
-              </div>
-              <div>
-                <dt className="font-serif text-2xl">Public</dt>
-                <dd className="mt-1 text-[#6b6258]">Proof stays visible</dd>
-              </div>
-              <div>
-                <dt className="font-serif text-2xl">50</dt>
-                <dd className="mt-1 text-[#6b6258]">Member group limit</dd>
-              </div>
-            </dl>
           </div>
 
           <div className="relative">
@@ -108,14 +102,10 @@ export default function LandingPage() {
         </section>
 
         <section id="feed" className="scroll-mt-20 border-y border-[#f0e6d8] bg-white">
-          <div className="mx-auto grid max-w-[1200px] gap-10 px-5 py-20 sm:px-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-end">
-            <div>
-              <p className="text-xs uppercase tracking-[0.18em] text-[#a16207]">The feed</p>
-              <h2 className="mt-3 font-serif text-4xl leading-tight sm:text-5xl">A timeline of positions, not headlines.</h2>
-            </div>
-            <p className="max-w-xl text-lg leading-8 text-[#6b6258]">
-              Follow people, reply, like, and repost. Mention someone with @username. Explore is the wider room. Nothing here is a live quote or a brokerage connection.
-            </p>
+          <div className="mx-auto max-w-[1200px] px-5 py-20 sm:px-8">
+            <h2 className="max-w-3xl font-serif text-4xl leading-tight sm:text-5xl">
+              Tell others your past investment, current holdings and what you are thinking about the market.
+            </h2>
           </div>
           <ol className="mx-auto grid max-w-[1200px] gap-px overflow-hidden border-t border-[#f0e6d8] bg-[#f0e6d8] px-0 sm:grid-cols-3">
             {steps.map(([number, title, copy]) => (
@@ -131,8 +121,8 @@ export default function LandingPage() {
         <section id="rooms" className="mx-auto max-w-[1200px] scroll-mt-20 px-5 py-20 sm:px-8">
           <div className="flex flex-wrap items-end justify-between gap-6">
             <div>
-              <p className="text-xs uppercase tracking-[0.18em] text-[#a16207]">Topic rooms</p>
-              <h2 className="mt-3 max-w-xl font-serif text-4xl leading-tight sm:text-5xl">Five rooms on day one. More when an admin opens them.</h2>
+              <p className="text-xs uppercase tracking-[0.18em] text-[#a16207]">Topical chatrooms</p>
+              <h2 className="mt-3 max-w-xl font-serif text-4xl leading-tight sm:text-5xl">Five topical chatrooms on day one. More when an admin opens new ones.</h2>
             </div>
             <Link href="/login" className="text-sm font-medium text-[#a16207] underline decoration-[#f0d7a4] underline-offset-4">
               Read them in the demo
@@ -146,25 +136,6 @@ export default function LandingPage() {
               </li>
             ))}
           </ul>
-        </section>
-
-        <section id="proof" className="scroll-mt-20 px-5 pb-20 sm:px-8">
-          <div className="mx-auto grid max-w-[1200px] overflow-hidden rounded-[28px] bg-[#1c140c] text-[#fff7ea] lg:grid-cols-[1.1fr_0.9fr]">
-            <div className="px-8 py-12 sm:px-12 sm:py-16">
-              <p className="text-xs uppercase tracking-[0.18em] text-[#f6b429]">Proof</p>
-              <h2 className="mt-4 font-serif text-4xl leading-tight sm:text-5xl">The receipt is public. The checkmark is not.</h2>
-              <p className="mt-5 max-w-md text-[#e7d7c3]">
-                Before an upload, three redaction boxes have to be checked. FINAZZA never calls a file verified. The label on every proof is the same sentence.
-              </p>
-            </div>
-            <div className="flex items-center bg-[#2a2118] px-8 py-12 sm:px-12">
-              <div className="w-full rounded-2xl border border-[#f6b429]/30 bg-[#1c140c] p-6">
-                <p className="text-xs uppercase tracking-[0.16em] text-[#f6b429]">Silver · 5 kg · $30/oz</p>
-                <p className="mt-4 font-serif text-3xl leading-snug">Proof uploaded — not verified by the platform</p>
-                <p className="mt-4 text-sm text-[#e7d7c3]">Dealer name, account number, and location removed before upload.</p>
-              </div>
-            </div>
-          </div>
         </section>
 
         <section className="mx-auto max-w-[1200px] px-5 pb-24 sm:px-8">
