@@ -168,11 +168,9 @@ export default function LandingPage() {
             <ol className="mt-10 grid gap-4 sm:grid-cols-3">
               {steps.map(([number, title, copy], index) => (
                 <Reveal as="li" key={number} delay={index * 140}>
-                  <div className="group h-full rounded-3xl border border-[#f0e6d8] bg-white p-6 shadow-[0_24px_50px_-36px_rgba(120,70,0,0.55)] transition duration-300 hover:-translate-y-1.5 hover:border-[#f5d9a8] hover:shadow-[0_30px_60px_-34px_rgba(245,166,35,0.7)] sm:p-7">
-                    <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-[#F5A623] to-[#FFC940] font-serif text-xl text-[#1c140c] transition duration-300 group-hover:rotate-[-6deg] group-hover:scale-110">
-                      {number}
-                    </span>
-                    <h3 className="mt-5 text-lg font-semibold">{title}</h3>
+                  <div className="h-full rounded-3xl border border-[#f0e6d8] bg-white p-6 shadow-[0_24px_50px_-36px_rgba(120,70,0,0.55)] transition duration-300 hover:-translate-y-1.5 hover:border-[#f5d9a8] hover:shadow-[0_30px_60px_-34px_rgba(245,166,35,0.7)] sm:p-7">
+                    <span className="block font-serif text-4xl leading-none text-[#1c140c]">{number}</span>
+                    <h3 className="mt-4 text-lg font-semibold">{title}</h3>
                     <p className="mt-2 text-sm leading-6 text-[#6b6258]">{copy}</p>
                   </div>
                 </Reveal>

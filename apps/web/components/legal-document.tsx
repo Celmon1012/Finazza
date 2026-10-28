@@ -14,7 +14,7 @@ export function LegalDocument({
 }: {
   title: string;
   meta: string;
-  notice: string;
+  notice?: string;
   sections: { heading: string; blocks: LegalBlock[] }[];
   otherHref: string;
   otherLabel: string;
@@ -34,7 +34,7 @@ export function LegalDocument({
         <p className="mt-8 text-xs uppercase tracking-[0.18em] text-[#a16207]">Legal</p>
         <h1 className="mt-2 font-serif text-4xl">{title}</h1>
         <p className="mt-3 text-sm text-[#6b6258]">{meta}</p>
-        <p className="mt-6 rounded-2xl border border-[#f0e6d8] bg-[#fff8ee] p-4 text-sm leading-6 text-[#6b6258]">{notice}</p>
+        {notice && <p className="mt-6 rounded-2xl border border-[#f0e6d8] bg-[#fff8ee] p-4 text-sm leading-6 text-[#6b6258]">{notice}</p>}
         <div className="mt-8 space-y-8">
           {sections.map((section) => (
             <section key={section.heading}>
