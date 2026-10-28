@@ -425,16 +425,21 @@ router.get(
   "/admin/rooms",
   requireAuth,
   requireAdmin,
-  wrap(async (_req, res) => {
+  wrap(async (req, res) => {
     const rooms = await Conversation.find({ type: "topic" });
     rooms.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    const total = rooms.length;
+    const { pageSize, page, skip } = pageOf(req.query.page, total);
     res.json({
-      rooms: rooms.map((room) => ({
+      rooms: rooms.slice(skip, skip + pageSize).map((room) => ({
         id: String(room._id),
         name: room.name,
         slug: room.slug,
         description: room.description || "",
       })),
+      total,
+      page,
+      pageSize,
     });
   }),
 );

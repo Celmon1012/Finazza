@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { Flag, MessagesSquare, SquarePen, Users } from "lucide-react";
 import { PageHeader } from "@/components/shell";
-import { Button, Empty, inputClass, Spinner } from "@/components/ui";
+import { Button, Empty, inputClass, Modal, Spinner } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import type { PublicUser, Report } from "@/lib/types";
@@ -78,7 +79,7 @@ export default function AdminPage() {
         ))}
       </div>
       {error && <p className="px-4 pt-3 text-sm text-[#ff5d73]">{error}</p>}
-      {tab === "overview" && <OverviewTab onError={setError} />}
+      {tab === "overview" && <OverviewTab onError={setError} onOpen={setTab} />}
       {tab === "people" && <PeopleTab onError={setError} />}
       {tab === "posts" && <PostsTab onError={setError} />}
       {tab === "rooms" && <RoomsTab onError={setError} />}
@@ -87,7 +88,7 @@ export default function AdminPage() {
   );
 }
 
-function OverviewTab({ onError }: { onError: (message: string) => void }) {
+function OverviewTab({ onError, onOpen }: { onError: (message: string) => void; onOpen: (tab: Tab) => void }) {
   const [stats, setStats] = useState<Overview | null>(null);
 
   useEffect(() => {
@@ -98,20 +99,70 @@ function OverviewTab({ onError }: { onError: (message: string) => void }) {
 
   if (!stats) return <Spinner label="Loading overview" />;
 
-  const cards = [
-    ["People", stats.people],
-    ["Posts", stats.posts],
-    ["Topic rooms", stats.rooms],
-    ["Open reports", stats.openReports],
-  ] as const;
+  const cards: {
+    tab: Tab;
+    label: string;
+    value: number;
+    hint: string;
+    icon: typeof Users;
+    wash: string;
+    iconClass: string;
+  }[] = [
+    {
+      tab: "people",
+      label: "People",
+      value: stats.people,
+      hint: "Accounts",
+      icon: Users,
+      wash: "bg-[#f6b429]/25",
+      iconClass: "bg-[#fff4e0] text-[#a35400]",
+    },
+    {
+      tab: "posts",
+      label: "Posts",
+      value: stats.posts,
+      hint: "Visible now",
+      icon: SquarePen,
+      wash: "bg-[#f0a020]/15",
+      iconClass: "bg-white text-neutral-800 ring-1 ring-[#f0e6d8]",
+    },
+    {
+      tab: "rooms",
+      label: "Topic rooms",
+      value: stats.rooms,
+      hint: "Conversations",
+      icon: MessagesSquare,
+      wash: "bg-[#f6b429]/20",
+      iconClass: "bg-[#fff4e0] text-[#a35400]",
+    },
+    {
+      tab: "reports",
+      label: "Open reports",
+      value: stats.openReports,
+      hint: stats.openReports ? "Need a look" : "All clear",
+      icon: Flag,
+      wash: stats.openReports ? "bg-[#ff5d73]/20" : "bg-emerald-400/15",
+      iconClass: stats.openReports ? "bg-[#fff0f2] text-[#d6334d]" : "bg-emerald-50 text-emerald-700",
+    },
+  ];
 
   return (
-    <div className="grid gap-3 p-4 sm:grid-cols-2">
-      {cards.map(([label, value]) => (
-        <div key={label} className="rounded-2xl border border-[#f0e6d8] bg-white/70 px-4 py-5">
-          <p className="text-sm text-neutral-500">{label}</p>
-          <p className="mt-1 font-serif text-3xl">{value}</p>
-        </div>
+    <div className="grid grid-cols-2 gap-3 p-4">
+      {cards.map((item) => (
+        <button
+          key={item.label}
+          type="button"
+          onClick={() => onOpen(item.tab)}
+          className="group relative overflow-hidden rounded-3xl border border-white/80 bg-white/80 p-4 text-left shadow-[0_16px_40px_-24px_rgba(120,72,8,0.55)] ring-1 ring-[#f0e6d8] transition duration-200 hover:-translate-y-0.5 hover:bg-white"
+        >
+          <span aria-hidden className={cn("pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full blur-2xl", item.wash)} />
+          <span className={cn("relative grid h-9 w-9 place-items-center rounded-2xl", item.iconClass)}>
+            <item.icon className="h-4 w-4" strokeWidth={2.25} />
+          </span>
+          <p className="relative mt-5 font-serif text-4xl leading-none tracking-tight">{item.value}</p>
+          <p className="relative mt-2 text-sm font-semibold text-neutral-950">{item.label}</p>
+          <p className="relative text-xs text-neutral-500">{item.hint}</p>
+        </button>
       ))}
     </div>
   );
@@ -308,20 +359,33 @@ function PostsTab({ onError }: { onError: (message: string) => void }) {
 }
 
 function RoomsTab({ onError }: { onError: (message: string) => void }) {
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [rooms, setRooms] = useState<AdminRoom[] | null>(null);
+  const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState({ name: "", slug: "", description: "" });
   const [editing, setEditing] = useState<AdminRoom | null>(null);
   const [busy, setBusy] = useState("");
 
-  function load() {
-    return api<{ rooms: AdminRoom[] }>("/api/admin/rooms")
-      .then((data) => setRooms(data.rooms))
+  function load(nextPage = page) {
+    return api<{ rooms: AdminRoom[]; total: number; page: number }>(`/api/admin/rooms?page=${nextPage}`)
+      .then((data) => {
+        setRooms(data.rooms);
+        setTotal(data.total);
+        setPage(data.page);
+      })
       .catch((err) => onError(err instanceof Error ? err.message : "Could not load rooms"));
   }
 
   useEffect(() => {
-    load().catch(() => undefined);
+    load(1).catch(() => undefined);
   }, []);
+
+  function closeCreate() {
+    if (busy === "create") return;
+    setCreating(false);
+    setDraft({ name: "", slug: "", description: "" });
+  }
 
   async function createRoom(event: React.FormEvent) {
     event.preventDefault();
@@ -329,7 +393,8 @@ function RoomsTab({ onError }: { onError: (message: string) => void }) {
     try {
       await api("/api/admin/rooms", { method: "POST", body: JSON.stringify(draft) });
       setDraft({ name: "", slug: "", description: "" });
-      await load();
+      setCreating(false);
+      await load(1);
     } catch (err) {
       onError(err instanceof Error ? err.message : "Could not create the room");
     } finally {
@@ -347,7 +412,7 @@ function RoomsTab({ onError }: { onError: (message: string) => void }) {
         body: JSON.stringify({ name: editing.name, slug: editing.slug, description: editing.description }),
       });
       setEditing(null);
-      await load();
+      await load(page);
     } catch (err) {
       onError(err instanceof Error ? err.message : "Could not save the room");
     } finally {
@@ -360,7 +425,8 @@ function RoomsTab({ onError }: { onError: (message: string) => void }) {
     setBusy(room.id);
     try {
       await api(`/api/admin/rooms/${room.id}`, { method: "DELETE" });
-      setRooms((current) => current?.filter((item) => item.id !== room.id) || null);
+      if (editing?.id === room.id) setEditing(null);
+      await load(page);
     } catch (err) {
       onError(err instanceof Error ? err.message : "Could not delete the room");
     } finally {
@@ -370,17 +436,15 @@ function RoomsTab({ onError }: { onError: (message: string) => void }) {
 
   return (
     <div>
-      <form className="space-y-2 border-b border-[#f0e6d8] px-4 py-4" onSubmit={createRoom}>
-        <h2 className="font-semibold">New topic room</h2>
-        <input className={inputClass} placeholder="Name" value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} required />
-        <input className={inputClass} placeholder="slug" value={draft.slug} onChange={(event) => setDraft({ ...draft, slug: event.target.value.toLowerCase() })} required />
-        <input className={inputClass} placeholder="Description" value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} />
-        <Button type="submit" disabled={busy === "create"}>
+      <div className="flex justify-end border-b border-[#f0e6d8] px-4 py-3">
+        <Button type="button" onClick={() => setCreating(true)}>
           Create room
         </Button>
-      </form>
+      </div>
       {!rooms ? (
         <Spinner label="Loading rooms" />
+      ) : rooms.length === 0 ? (
+        <Empty title="No topic rooms" body="Create a room to give members a place to talk." />
       ) : (
         <ul>
           {rooms.map((room) => (
@@ -417,6 +481,19 @@ function RoomsTab({ onError }: { onError: (message: string) => void }) {
             </li>
           ))}
         </ul>
+      )}
+      {rooms && <PageBar page={page} total={total} onPage={(next) => load(next).catch(() => undefined)} />}
+      {creating && (
+        <Modal title="New topic room" onClose={closeCreate}>
+          <form className="space-y-2" onSubmit={createRoom}>
+            <input className={inputClass} placeholder="Name" value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} required />
+            <input className={inputClass} placeholder="slug" value={draft.slug} onChange={(event) => setDraft({ ...draft, slug: event.target.value.toLowerCase() })} required />
+            <input className={inputClass} placeholder="Description" value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} />
+            <Button type="submit" disabled={busy === "create"}>
+              Create room
+            </Button>
+          </form>
+        </Modal>
       )}
     </div>
   );
