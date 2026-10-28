@@ -82,7 +82,7 @@ export async function seedIfEmpty() {
       displayName: "FINAZZA Admin",
       bio: "Rooms, reports, and removed posts.",
       location: "Moderation",
-      role: "admin",
+      role: "user",
     }),
     makeUser({
       email: "alex@finazza.dev",
@@ -455,5 +455,5 @@ export async function seedIfEmpty() {
   console.log("  alex@finazza.dev   Jordan's peer and the portfolio snapshot");
   console.log("  jordan@finazza.dev charts and direct messages");
   console.log("  sam@finazza.dev    collectibles");
-  console.log("  admin@finazza.dev  reports and rooms");
+  console.log("  admin@finazza.dev  a normal demo account");
 }

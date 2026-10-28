@@ -86,7 +86,7 @@ export function Composer({
   }
 
   return (
-    <form onSubmit={submit} className="flex gap-3 border-b border-neutral-200 px-4 py-3">
+    <form onSubmit={submit} className="flex gap-3 border-b border-[#f0e6d8] px-4 py-3">
       <Avatar name={user?.displayName || "You"} url={user?.avatarUrl} />
       <div className="min-w-0 flex-1">
         <textarea
@@ -94,7 +94,7 @@ export function Composer({
           maxLength={500}
           onChange={(event) => setText(event.target.value)}
           placeholder={placeholder}
-          className="min-h-16 w-full resize-none bg-white text-lg placeholder:text-neutral-400"
+          className="min-h-16 w-full resize-none bg-transparent text-lg placeholder:text-neutral-400"
         />
         {files.length > 0 && (
           <div className="mb-2 flex gap-2">
@@ -230,7 +230,7 @@ export function PostCard({ post, onChange, onBookmark }: { post: Post; onChange?
   }
 
   return (
-    <article className="border-b border-neutral-200 px-4 py-3 hover:bg-neutral-50">
+    <article className="border-b border-[#f0e6d8] px-4 py-3 transition-colors hover:bg-white/60">
       {pureRepost && <p className="mb-2 pl-12 text-sm text-neutral-500">{author.displayName} reposted</p>}
       <div className="flex gap-3">
         <Link href={`/u/${author.username}`}>

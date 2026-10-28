@@ -1,81 +1,439 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/shell";
-import { Button, inputClass, Spinner } from "@/components/ui";
+import { Button, Empty, inputClass, Spinner } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import type { Report } from "@/lib/types";
-import { timeAgo } from "@/lib/utils";
+import type { PublicUser, Report } from "@/lib/types";
+import { cn, timeAgo } from "@/lib/utils";
+
+type Tab = "overview" | "people" | "posts" | "rooms" | "reports";
+
+type Overview = { people: number; posts: number; openReports: number; rooms: number };
+
+type AdminUser = {
+  id: string;
+  email: string;
+  username: string;
+  displayName: string;
+  role: "user" | "admin";
+  suspended: boolean;
+  createdAt: string;
+};
+
+type AdminPost = {
+  id: string;
+  text: string;
+  createdAt: string;
+  likeCount: number;
+  replyCount: number;
+  author: PublicUser | null;
+};
+
+type AdminRoom = { id: string; name: string; slug: string | null; description: string };
+
+const tabs: { id: Tab; label: string }[] = [
+  { id: "overview", label: "Overview" },
+  { id: "people", label: "People" },
+  { id: "posts", label: "Posts" },
+  { id: "rooms", label: "Rooms" },
+  { id: "reports", label: "Reports" },
+];
 
 export default function AdminPage() {
   const { user } = useAuth();
-  const [reports, setReports] = useState<Report[]>([]);
-  const [room, setRoom] = useState({ name: "", slug: "", description: "" });
-  const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<Tab>("overview");
+  const [error, setError] = useState("");
 
-  function load() {
-    return api<{ reports: Report[] }>("/api/admin/reports").then((data) => setReports(data.reports));
-  }
-
-  useEffect(() => {
-    if (user?.role !== "admin") return;
-    load().finally(() => setLoading(false));
-  }, [user?.role]);
-
-  if (user?.role !== "admin") return <p className="px-4 py-8">Admins only.</p>;
-
-  async function act(id: string, action: "dismiss" | "hide" | "suspend") {
-    await api(`/api/admin/reports/${id}`, { method: "POST", body: JSON.stringify({ action }) });
-    await load();
-  }
-
-  async function createRoom(event: React.FormEvent) {
-    event.preventDefault();
-    await api("/api/admin/rooms", { method: "POST", body: JSON.stringify(room) });
-    setRoom({ name: "", slug: "", description: "" });
-    setMessage("Room created");
+  if (user?.role !== "admin") {
+    return (
+      <div>
+        <PageHeader title="Admin" subtitle="Site management" />
+        <p className="px-4 py-8 text-sm text-neutral-500">This page is only for the site admins.</p>
+      </div>
+    );
   }
 
   return (
     <div>
-      <PageHeader title="Admin" subtitle="Reports, hidden content, rooms" />
-      <form className="space-y-2 border-b border-neutral-200 px-4 py-4" onSubmit={createRoom}>
-        <h2 className="font-semibold">New topic room</h2>
-        <input className={inputClass} placeholder="Name" value={room.name} onChange={(event) => setRoom({ ...room, name: event.target.value })} required />
-        <input className={inputClass} placeholder="slug" value={room.slug} onChange={(event) => setRoom({ ...room, slug: event.target.value })} required />
-        <input className={inputClass} placeholder="Description" value={room.description} onChange={(event) => setRoom({ ...room, description: event.target.value })} />
-        <Button type="submit">Create room</Button>
-        {message && <p className="text-sm text-[#3dd68c]">{message}</p>}
-      </form>
-      {loading && <Spinner />}
-      <ul>
-        {reports.map((report) => (
-          <li key={report.id} className="border-b border-neutral-200 px-4 py-3 text-sm">
-            <p>
-              <span className="font-semibold">{report.reason}</span> · {report.targetType} · {report.status}
-            </p>
-            <p className="text-neutral-500">
-              {report.reporter?.displayName} · {timeAgo(report.createdAt)}
-            </p>
-            {report.details && <p className="mt-1">{report.details}</p>}
-            {report.status === "open" && (
-              <div className="mt-2 flex gap-2">
-                <Button variant="ghost" onClick={() => act(report.id, "hide")}>
-                  Hide
-                </Button>
-                <Button variant="danger" onClick={() => act(report.id, "suspend")}>
-                  Hide and suspend
-                </Button>
-                <Button variant="outline" onClick={() => act(report.id, "dismiss")}>
-                  Dismiss
-                </Button>
-              </div>
+      <PageHeader title="Admin" subtitle="People, posts, rooms, and reports" />
+      <div className="flex gap-1 overflow-x-auto border-b border-[#f0e6d8] px-3 py-2">
+        {tabs.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            className={cn(
+              "shrink-0 rounded-full px-4 py-1.5 text-sm font-medium",
+              tab === item.id ? "bg-white text-neutral-950 shadow-sm ring-1 ring-[#f0e6d8]" : "text-neutral-500 hover:bg-white/70",
             )}
-          </li>
+            onClick={() => {
+              setError("");
+              setTab(item.id);
+            }}
+          >
+            {item.label}
+          </button>
         ))}
-      </ul>
+      </div>
+      {error && <p className="px-4 pt-3 text-sm text-[#ff5d73]">{error}</p>}
+      {tab === "overview" && <OverviewTab onError={setError} />}
+      {tab === "people" && <PeopleTab onError={setError} />}
+      {tab === "posts" && <PostsTab onError={setError} />}
+      {tab === "rooms" && <RoomsTab onError={setError} />}
+      {tab === "reports" && <ReportsTab onError={setError} />}
     </div>
+  );
+}
+
+function OverviewTab({ onError }: { onError: (message: string) => void }) {
+  const [stats, setStats] = useState<Overview | null>(null);
+
+  useEffect(() => {
+    api<Overview>("/api/admin/overview")
+      .then(setStats)
+      .catch((err) => onError(err instanceof Error ? err.message : "Could not load the overview"));
+  }, [onError]);
+
+  if (!stats) return <Spinner label="Loading overview" />;
+
+  const cards = [
+    ["People", stats.people],
+    ["Posts", stats.posts],
+    ["Topic rooms", stats.rooms],
+    ["Open reports", stats.openReports],
+  ] as const;
+
+  return (
+    <div className="grid gap-3 p-4 sm:grid-cols-2">
+      {cards.map(([label, value]) => (
+        <div key={label} className="rounded-2xl border border-[#f0e6d8] bg-white/70 px-4 py-5">
+          <p className="text-sm text-neutral-500">{label}</p>
+          <p className="mt-1 font-serif text-3xl">{value}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PeopleTab({ onError }: { onError: (message: string) => void }) {
+  const [query, setQuery] = useState("");
+  const [users, setUsers] = useState<AdminUser[] | null>(null);
+  const [busy, setBusy] = useState("");
+
+  function load(q = query) {
+    const path = q.trim() ? `/api/admin/users?q=${encodeURIComponent(q.trim())}` : "/api/admin/users";
+    return api<{ users: AdminUser[] }>(path)
+      .then((data) => setUsers(data.users))
+      .catch((err) => onError(err instanceof Error ? err.message : "Could not load people"));
+  }
+
+  useEffect(() => {
+    load("").catch(() => undefined);
+  }, []);
+
+  async function setSuspended(person: AdminUser, suspended: boolean) {
+    setBusy(person.id);
+    try {
+      await api(`/api/admin/users/${person.id}/suspend`, { method: "POST", body: JSON.stringify({ suspended }) });
+      setUsers((current) => current?.map((item) => (item.id === person.id ? { ...item, suspended } : item)) || null);
+    } catch (err) {
+      onError(err instanceof Error ? err.message : "Could not update this account");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  return (
+    <div>
+      <form
+        className="flex gap-2 border-b border-[#f0e6d8] px-4 py-3"
+        onSubmit={(event) => {
+          event.preventDefault();
+          load().catch(() => undefined);
+        }}
+      >
+        <input className={inputClass} placeholder="Search name, username, or email" value={query} onChange={(event) => setQuery(event.target.value)} />
+        <Button type="submit">Search</Button>
+      </form>
+      {!users ? (
+        <Spinner label="Loading people" />
+      ) : users.length === 0 ? (
+        <Empty title="No people found" body="Try another name or email." />
+      ) : (
+        <ul>
+          {users.map((person) => (
+            <li key={person.id} className="flex items-center gap-3 border-b border-[#f0e6d8] px-4 py-3">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold">
+                  <Link href={`/u/${person.username}`} className="hover:underline">
+                    {person.displayName}
+                  </Link>{" "}
+                  <span className="font-normal text-neutral-500">@{person.username}</span>
+                  {person.role === "admin" && <span className="ml-2 rounded-full bg-[#fff4e0] px-2 py-0.5 text-xs font-medium text-[#a35400]">Admin</span>}
+                  {person.suspended && <span className="ml-2 rounded-full bg-[#fff0f2] px-2 py-0.5 text-xs font-medium text-[#d6334d]">Suspended</span>}
+                </p>
+                <p className="truncate text-xs text-neutral-500">
+                  {person.email} · joined {timeAgo(person.createdAt)}
+                </p>
+              </div>
+              {person.role !== "admin" && (
+                <Button variant={person.suspended ? "outline" : "danger"} disabled={busy === person.id} onClick={() => setSuspended(person, !person.suspended)}>
+                  {person.suspended ? "Restore" : "Suspend"}
+                </Button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function PostsTab({ onError }: { onError: (message: string) => void }) {
+  const [query, setQuery] = useState("");
+  const [posts, setPosts] = useState<AdminPost[] | null>(null);
+  const [busy, setBusy] = useState("");
+
+  function load(q = query) {
+    const path = q.trim() ? `/api/admin/posts?q=${encodeURIComponent(q.trim())}` : "/api/admin/posts";
+    return api<{ posts: AdminPost[] }>(path)
+      .then((data) => setPosts(data.posts))
+      .catch((err) => onError(err instanceof Error ? err.message : "Could not load posts"));
+  }
+
+  useEffect(() => {
+    load("").catch(() => undefined);
+  }, []);
+
+  async function hide(post: AdminPost) {
+    if (!window.confirm("Hide this post from the site?")) return;
+    setBusy(post.id);
+    try {
+      await api(`/api/admin/posts/${post.id}/hide`, { method: "POST" });
+      setPosts((current) => current?.filter((item) => item.id !== post.id) || null);
+    } catch (err) {
+      onError(err instanceof Error ? err.message : "Could not hide the post");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  return (
+    <div>
+      <form
+        className="flex gap-2 border-b border-[#f0e6d8] px-4 py-3"
+        onSubmit={(event) => {
+          event.preventDefault();
+          load().catch(() => undefined);
+        }}
+      >
+        <input className={inputClass} placeholder="Search post text" value={query} onChange={(event) => setQuery(event.target.value)} />
+        <Button type="submit">Search</Button>
+      </form>
+      {!posts ? (
+        <Spinner label="Loading posts" />
+      ) : posts.length === 0 ? (
+        <Empty title="No posts" body="Nothing matched this search." />
+      ) : (
+        <ul>
+          {posts.map((post) => (
+            <li key={post.id} className="flex items-start gap-3 border-b border-[#f0e6d8] px-4 py-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-neutral-500">
+                  {post.author ? (
+                    <Link href={`/u/${post.author.username}`} className="font-medium text-neutral-700 hover:underline">
+                      {post.author.displayName}
+                    </Link>
+                  ) : (
+                    "Deleted user"
+                  )}{" "}
+                  · {timeAgo(post.createdAt)} · {post.likeCount} likes · {post.replyCount} replies
+                </p>
+                <p className="mt-1 whitespace-pre-wrap text-sm">{post.text || "Image post"}</p>
+              </div>
+              <Button variant="danger" disabled={busy === post.id} onClick={() => hide(post)}>
+                Hide
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function RoomsTab({ onError }: { onError: (message: string) => void }) {
+  const [rooms, setRooms] = useState<AdminRoom[] | null>(null);
+  const [draft, setDraft] = useState({ name: "", slug: "", description: "" });
+  const [editing, setEditing] = useState<AdminRoom | null>(null);
+  const [busy, setBusy] = useState("");
+
+  function load() {
+    return api<{ rooms: AdminRoom[] }>("/api/admin/rooms")
+      .then((data) => setRooms(data.rooms))
+      .catch((err) => onError(err instanceof Error ? err.message : "Could not load rooms"));
+  }
+
+  useEffect(() => {
+    load().catch(() => undefined);
+  }, []);
+
+  async function createRoom(event: React.FormEvent) {
+    event.preventDefault();
+    setBusy("create");
+    try {
+      await api("/api/admin/rooms", { method: "POST", body: JSON.stringify(draft) });
+      setDraft({ name: "", slug: "", description: "" });
+      await load();
+    } catch (err) {
+      onError(err instanceof Error ? err.message : "Could not create the room");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function saveRoom(event: React.FormEvent) {
+    event.preventDefault();
+    if (!editing) return;
+    setBusy(editing.id);
+    try {
+      await api(`/api/admin/rooms/${editing.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ name: editing.name, slug: editing.slug, description: editing.description }),
+      });
+      setEditing(null);
+      await load();
+    } catch (err) {
+      onError(err instanceof Error ? err.message : "Could not save the room");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function removeRoom(room: AdminRoom) {
+    if (!window.confirm(`Delete #${room.slug}? Its messages will be removed.`)) return;
+    setBusy(room.id);
+    try {
+      await api(`/api/admin/rooms/${room.id}`, { method: "DELETE" });
+      setRooms((current) => current?.filter((item) => item.id !== room.id) || null);
+    } catch (err) {
+      onError(err instanceof Error ? err.message : "Could not delete the room");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  return (
+    <div>
+      <form className="space-y-2 border-b border-[#f0e6d8] px-4 py-4" onSubmit={createRoom}>
+        <h2 className="font-semibold">New topic room</h2>
+        <input className={inputClass} placeholder="Name" value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} required />
+        <input className={inputClass} placeholder="slug" value={draft.slug} onChange={(event) => setDraft({ ...draft, slug: event.target.value.toLowerCase() })} required />
+        <input className={inputClass} placeholder="Description" value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} />
+        <Button type="submit" disabled={busy === "create"}>
+          Create room
+        </Button>
+      </form>
+      {!rooms ? (
+        <Spinner label="Loading rooms" />
+      ) : (
+        <ul>
+          {rooms.map((room) => (
+            <li key={room.id} className="border-b border-[#f0e6d8] px-4 py-3">
+              {editing?.id === room.id ? (
+                <form className="space-y-2" onSubmit={saveRoom}>
+                  <input className={inputClass} value={editing.name} onChange={(event) => setEditing({ ...editing, name: event.target.value })} required />
+                  <input className={inputClass} value={editing.slug || ""} onChange={(event) => setEditing({ ...editing, slug: event.target.value.toLowerCase() })} required />
+                  <input className={inputClass} value={editing.description} onChange={(event) => setEditing({ ...editing, description: event.target.value })} />
+                  <div className="flex gap-2">
+                    <Button type="submit" disabled={busy === room.id}>
+                      Save
+                    </Button>
+                    <Button type="button" variant="outline" onClick={() => setEditing(null)}>
+                      Cancel
+                    </Button>
+                  </div>
+                </form>
+              ) : (
+                <div className="flex items-start gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold">#{room.slug}</p>
+                    <p className="text-sm">{room.name}</p>
+                    <p className="text-xs text-neutral-500">{room.description || "No description"}</p>
+                  </div>
+                  <Button variant="outline" onClick={() => setEditing(room)}>
+                    Edit
+                  </Button>
+                  <Button variant="danger" disabled={busy === room.id} onClick={() => removeRoom(room)}>
+                    Delete
+                  </Button>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function ReportsTab({ onError }: { onError: (message: string) => void }) {
+  const [reports, setReports] = useState<Report[] | null>(null);
+  const [busy, setBusy] = useState("");
+
+  function load() {
+    return api<{ reports: Report[] }>("/api/admin/reports")
+      .then((data) => setReports(data.reports))
+      .catch((err) => onError(err instanceof Error ? err.message : "Could not load reports"));
+  }
+
+  useEffect(() => {
+    load().catch(() => undefined);
+  }, []);
+
+  async function act(id: string, action: "dismiss" | "hide" | "suspend") {
+    setBusy(id);
+    try {
+      await api(`/api/admin/reports/${id}`, { method: "POST", body: JSON.stringify({ action }) });
+      await load();
+    } catch (err) {
+      onError(err instanceof Error ? err.message : "Could not update the report");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  if (!reports) return <Spinner label="Loading reports" />;
+  if (reports.length === 0) return <Empty title="No reports" body="Reports from members will show up here." />;
+
+  return (
+    <ul>
+      {reports.map((report) => (
+        <li key={report.id} className="border-b border-[#f0e6d8] px-4 py-3 text-sm">
+          <p>
+            <span className="font-semibold">{report.reason}</span> · {report.targetType} · {report.status}
+          </p>
+          <p className="text-neutral-500">
+            {report.reporter?.displayName || "Someone"} · {timeAgo(report.createdAt)}
+          </p>
+          {report.details && <p className="mt-1">{report.details}</p>}
+          {report.status === "open" && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              <Button variant="ghost" disabled={busy === report.id} onClick={() => act(report.id, "hide")}>
+                Hide
+              </Button>
+              <Button variant="danger" disabled={busy === report.id} onClick={() => act(report.id, "suspend")}>
+                Hide and suspend
+              </Button>
+              <Button variant="outline" disabled={busy === report.id} onClick={() => act(report.id, "dismiss")}>
+                Dismiss
+              </Button>
+            </div>
+          )}
+        </li>
+      ))}
+    </ul>
   );
 }

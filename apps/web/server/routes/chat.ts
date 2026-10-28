@@ -4,7 +4,7 @@ import { z } from "zod";
 import { GROUP_MEMBER_LIMIT } from "../config.js";
 import { requireAuth } from "../auth.js";
 import { HttpError, wrap } from "../http.js";
-import { Conversation, Message, ReadState, User, sameId } from "../models.js";
+import { Conversation, Message, ReadState, User, sameId, unreadByConversation } from "../models.js";
 import { createNotification, getIO } from "../notify.js";
 import { authorMini, messageDto } from "../present.js";
 import { assertCleanText, canMessage, escapeRegex, extractMentions } from "../social.js";
@@ -67,7 +67,7 @@ function conversationName(convo: any, viewerId: unknown) {
   return other?.user?.displayName || "Direct message";
 }
 
-async function presentConversation(convo: any, viewerId: unknown) {
+async function presentConversation(convo: any, viewerId: unknown, unread?: number) {
   const members = (convo.members || []).map((member: any) => ({
     ...authorMini(member.user),
     role: member.role,
@@ -82,7 +82,7 @@ async function presentConversation(convo: any, viewerId: unknown) {
     avatarUrl: photo,
     members,
     memberCount: convo.type === "topic" ? null : members.length,
-    unreadCount: await unreadCount(convo, viewerId),
+    unreadCount: unread ?? (await unreadCount(convo, viewerId)),
     lastMessageText: convo.lastMessageText || "",
     lastMessageAt: convo.lastMessageAt,
   };
@@ -101,7 +101,8 @@ router.get(
     const conversations = await Conversation.find(query)
       .sort({ lastMessageAt: -1, name: 1 })
       .populate("members.user", "username displayName avatarUrl");
-    const items = await Promise.all(conversations.map((convo) => presentConversation(convo, req.user!._id)));
+    const counts = await unreadByConversation(req.user!._id, conversations);
+    const items = await Promise.all(conversations.map((convo) => presentConversation(convo, req.user!._id, counts.get(String(convo._id)) || 0)));
     if (scope === "topic") items.sort((a, b) => a.name.localeCompare(b.name));
     res.json({ conversations: items });
   }),
@@ -168,31 +169,34 @@ router.post(
   }),
 );
 
+async function messagePage(id: string, before: Date | null, after: Date | null) {
+  const limit = 50;
+  if (after && !Number.isNaN(after.getTime())) {
+    const docs = await Message.find({ conversation: id, createdAt: { $gt: after } })
+      .sort({ createdAt: 1 })
+      .limit(limit)
+      .populate("author", "username displayName avatarUrl");
+    return { messages: docs.map(messageDto), hasMore: false };
+  }
+  const query: Record<string, unknown> = { conversation: id };
+  if (before && !Number.isNaN(before.getTime())) query.createdAt = { $lt: before };
+  const docs = await Message.find(query)
+    .sort({ createdAt: -1 })
+    .limit(limit + 1)
+    .populate("author", "username displayName avatarUrl");
+  const hasMore = docs.length > limit;
+  return { messages: docs.slice(0, limit).reverse().map(messageDto), hasMore };
+}
+
 router.get(
   "/:id/messages",
   wrap(async (req, res) => {
-    const convo = await loadConversation(req.params.id);
-    assertMember(convo, req.user!._id);
-    const limit = 50;
     const before = req.query.before ? new Date(String(req.query.before)) : null;
     const after = req.query.after ? new Date(String(req.query.after)) : null;
-    const query: Record<string, unknown> = { conversation: convo._id };
-    if (after && !Number.isNaN(after.getTime())) {
-      const docs = await Message.find({ conversation: convo._id, createdAt: { $gt: after } })
-        .sort({ createdAt: 1 })
-        .limit(limit)
-        .populate("author", "username displayName avatarUrl");
-      res.json({ messages: docs.map(messageDto), hasMore: false });
-      return;
-    }
-    if (before && !Number.isNaN(before.getTime())) query.createdAt = { $lt: before };
-    const docs = await Message.find(query)
-      .sort({ createdAt: -1 })
-      .limit(limit + 1)
-      .populate("author", "username displayName avatarUrl");
-    const hasMore = docs.length > limit;
-    const messages = docs.slice(0, limit).reverse().map(messageDto);
-    res.json({ messages, hasMore });
+    const [convo, page] = await Promise.all([Conversation.findById(req.params.id), messagePage(req.params.id, before, after)]);
+    if (!convo) throw new HttpError(404, "Conversation not found");
+    assertMember(convo, req.user!._id);
+    res.json(page);
   }),
 );
 

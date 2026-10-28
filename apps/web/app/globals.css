@@ -60,6 +60,36 @@ select:focus-visible {
   animation: sheet-rise 0.28s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+@keyframes auth-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.auth-rise {
+  animation: auth-rise 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Same paint as the signed-in pages, so sticky bars match the page behind them. */
+.page-wash {
+  background-image: linear-gradient(rgb(255 255 255 / 0.35), rgb(255 255 255 / 0.35)), url("/bg/app-bg.svg");
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+}
+
+@media (min-width: 1024px) {
+  .page-wash {
+    background-image: linear-gradient(rgb(255 255 255 / 0.45), rgb(255 255 255 / 0.45)), url("/bg/app-bg.svg");
+  }
+}
+
 .gold-text {
   background: linear-gradient(90deg, #e8941a, #f0a020);
   -webkit-background-clip: text;
@@ -160,6 +190,7 @@ select:focus-visible {
   }
 
   .float-soft,
+  .auth-rise,
   .is-visible .draw-line,
   .is-visible .draw-dot {
     animation: none;

@@ -29,7 +29,7 @@ export default function PostPage() {
 
   return (
     <div>
-      <header className="sticky top-0 z-20 flex items-center gap-4 border-b border-neutral-200 bg-white/95 px-4 py-3 backdrop-blur">
+      <header className="sticky top-0 z-20 flex items-center gap-4 page-wash border-b border-[#f0e6d8] px-4 py-3">
         <Link href="/home" aria-label="Back">
           <ArrowLeft />
         </Link>

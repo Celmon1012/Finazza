@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
-import { Logo } from "@/components/logo";
+import { AuthLayout } from "@/components/auth-layout";
 import { Button, inputClass, Spinner } from "@/components/ui";
 import { api } from "@/lib/api";
 
@@ -25,15 +25,14 @@ function ResetForm() {
   }
 
   return (
-    <main className="mx-auto grid min-h-screen max-w-md place-items-center px-6">
-      <div className="w-full">
-        <Logo />
+    <AuthLayout>
+      <div>
         <h1 className="mt-6 text-3xl font-semibold">Choose a new password</h1>
         <form className="mt-6 space-y-3" onSubmit={submit}>
-          <input className={inputClass} type="password" minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} required />
+          <input className={inputClass} type="password" autoComplete="new-password" placeholder="New password" aria-label="New password" minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} required />
           {error && <p className="text-sm text-[#ff5d73]">{error}</p>}
           {!token && <p className="text-sm text-[#ff5d73]">This reset link is missing a token.</p>}
-          <Button type="submit" disabled={!token}>
+          <Button type="submit" className="w-full" disabled={!token}>
             Update password
           </Button>
         </form>
@@ -41,7 +40,7 @@ function ResetForm() {
           Back to sign in
         </Link>
       </div>
-    </main>
+    </AuthLayout>
   );
 }
 

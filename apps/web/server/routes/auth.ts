@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import rateLimit from "express-rate-limit";
 import { z } from "zod";
 import { config } from "../config.js";
-import { requireAuth, signToken } from "../auth.js";
+import { isSiteAdminEmail, requireAuth, signToken, syncSiteAdmin } from "../auth.js";
 import { sendPasswordReset } from "../email.js";
 import { HttpError, wrap } from "../http.js";
 import { Conversation, ReadState, User } from "../models.js";
@@ -43,6 +43,7 @@ router.post(
       displayName: body.displayName,
       passwordHash: await bcrypt.hash(body.password, 12),
       acceptedTermsAt: new Date(),
+      role: isSiteAdminEmail(body.email) ? "admin" : "user",
     });
 
     const topics = await Conversation.find({ type: "topic" });
@@ -71,6 +72,7 @@ router.post(
     if (!user || user.suspended) throw new HttpError(401, "Email or password is incorrect");
     const match = await bcrypt.compare(body.password, user.passwordHash);
     if (!match) throw new HttpError(401, "Email or password is incorrect");
+    await syncSiteAdmin(user);
     res.json({ token: signToken(String(user._id)), user: meDto(user) });
   }),
 );

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Logo } from "@/components/logo";
+import { AuthLayout } from "@/components/auth-layout";
 import { Button, inputClass } from "@/components/ui";
 import { api } from "@/lib/api";
 
@@ -28,12 +28,11 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <main className="mx-auto grid min-h-screen max-w-md place-items-center px-6">
-      <div className="w-full">
-        <Logo />
+    <AuthLayout>
+      <div>
         <h1 className="mt-6 text-3xl font-semibold">Reset password</h1>
         <form className="mt-6 space-y-3" onSubmit={submit}>
-          <input className={inputClass} type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+          <input className={inputClass} type="email" autoComplete="email" placeholder="Email" aria-label="Email" value={email} onChange={(event) => setEmail(event.target.value)} required />
           {error && <p className="text-sm text-[#ff5d73]">{error}</p>}
           {message && <p className="text-sm text-[#3dd68c]">{message}</p>}
           {resetUrl && (
@@ -41,9 +40,12 @@ export default function ForgotPasswordPage() {
               Open the development reset link
             </Link>
           )}
-          <Button type="submit">Send reset link</Button>
+          <Button type="submit" className="w-full">Send reset link</Button>
         </form>
+        <Link href="/login" className="mt-4 inline-block text-sm text-[#c56a00]">
+          Back to sign in
+        </Link>
       </div>
-    </main>
+    </AuthLayout>
   );
 }

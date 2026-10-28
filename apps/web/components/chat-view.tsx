@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
@@ -24,6 +24,7 @@ import {
   X,
 } from "lucide-react";
 import { api, mediaUrl } from "@/lib/api";
+import { cachedMessages, fetchMessages, prefetchMessages, rememberMessages } from "@/lib/chat-cache";
 import { getSocket, useAuth } from "@/lib/auth";
 import type { ChatMessage, Conversation, PublicUser } from "@/lib/types";
 import { cn, timeAgo } from "@/lib/utils";
@@ -78,13 +79,17 @@ function joinsPrevious(message: ChatMessage, previous?: ChatMessage) {
   return new Date(message.createdAt).getTime() - new Date(previous.createdAt).getTime() < GROUP_GAP_MS;
 }
 
-export function ChatView({ activeId }: { activeId?: string }) {
+export function ChatView() {
   const { user, refreshBadges } = useAuth();
   const router = useRouter();
+  const pathname = usePathname() || "";
+  const routeId = pathname.startsWith("/chat/") ? decodeURIComponent(pathname.slice("/chat/".length).split("/")[0] || "") : "";
+  const [chosenId, setChosenId] = useState<string | null>(null);
+  const activeId = chosenId ?? routeId;
   const [scope, setScope] = useState<"topic" | "inbox">("inbox");
   const [rooms, setRooms] = useState<Conversation[]>([]);
   const [inbox, setInbox] = useState<Conversation[]>([]);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => (activeId && cachedMessages(activeId)) || []);
   const [text, setText] = useState("");
   const [query, setQuery] = useState("");
   const [error, setError] = useState("");
@@ -92,7 +97,7 @@ export function ChatView({ activeId }: { activeId?: string }) {
   const [uploading, setUploading] = useState(false);
   const [composerMode, setComposerMode] = useState<"dm" | "group" | null>(null);
   const [membersOpen, setMembersOpen] = useState(false);
-  const [messagesReady, setMessagesReady] = useState(false);
+  const [messagesReady, setMessagesReady] = useState(() => Boolean(activeId && cachedMessages(activeId)));
   const [canRecord, setCanRecord] = useState(false);
   const [recordingSince, setRecordingSince] = useState<number | null>(null);
   const [recordingMs, setRecordingMs] = useState(0);
@@ -107,6 +112,18 @@ export function ChatView({ activeId }: { activeId?: string }) {
 
   const active = useMemo(() => [...rooms, ...inbox].find((item) => item.id === activeId) || null, [rooms, inbox, activeId]);
 
+  useEffect(() => {
+    if (chosenId !== null && routeId === chosenId) setChosenId(null);
+  }, [routeId, chosenId]);
+
+  function showConversation(id: string) {
+    setChosenId(id);
+    prefetchMessages(id);
+    if (id === routeId) return;
+    const href = id ? `/chat/${id}` : "/chat";
+    window.setTimeout(() => router.push(href), 0);
+  }
+
   async function loadLists() {
     const [topic, direct] = await Promise.all([
       api<{ conversations: Conversation[] }>("/api/conversations?scope=topic"),
@@ -114,6 +131,7 @@ export function ChatView({ activeId }: { activeId?: string }) {
     ]);
     setRooms(topic.conversations);
     setInbox(direct.conversations);
+    for (const item of [...topic.conversations, ...direct.conversations].slice(0, 12)) prefetchMessages(item.id);
   }
 
   function markRead(id: string) {
@@ -160,18 +178,30 @@ export function ChatView({ activeId }: { activeId?: string }) {
   }, [active?.id]);
 
   useEffect(() => {
-    setMessages([]);
-    setMessagesReady(false);
     setMembersOpen(false);
-    if (!activeId) return;
+    if (!activeId) {
+      setMessages([]);
+      setMessagesReady(false);
+      return;
+    }
+    const cached = cachedMessages(activeId);
+    if (cached) {
+      setMessages(cached);
+      setMessagesReady(true);
+    } else {
+      setMessages([]);
+      setMessagesReady(false);
+    }
     let cancelled = false;
-    api<{ messages: ChatMessage[] }>(`/api/conversations/${activeId}/messages`)
-      .then((data) => {
+    fetchMessages(activeId)
+      .then((items) => {
         if (cancelled) return;
-        setMessages(data.messages);
+        setMessages(items);
         setMessagesReady(true);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "Could not open the chat"));
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Could not open the chat");
+      });
     markRead(activeId);
 
     let polling = false;
@@ -215,6 +245,12 @@ export function ChatView({ activeId }: { activeId?: string }) {
       socket?.off("message:new", onMessage);
     };
   }, [activeId]);
+
+  useEffect(() => {
+    if (!activeId || !messagesReady || messages.length === 0) return;
+    if (messages.some((item) => item.conversationId !== activeId)) return;
+    rememberMessages(activeId, messages);
+  }, [activeId, messages, messagesReady]);
 
   useEffect(() => {
     bottom.current?.scrollIntoView({ block: "end" });
@@ -281,7 +317,7 @@ export function ChatView({ activeId }: { activeId?: string }) {
   async function removeEmpty(id: string) {
     await api(`/api/conversations/${id}`, { method: "DELETE" });
     setInbox((current) => current.filter((item) => item.id !== id));
-    if (activeId === id) router.push("/chat");
+    if (activeId === id) showConversation("");
   }
 
   async function uploadImage(file: File) {
@@ -402,17 +438,18 @@ export function ChatView({ activeId }: { activeId?: string }) {
       )}
     >
       <section className={cn("flex w-full min-h-0 flex-col border-neutral-200 md:w-[360px] md:shrink-0 md:border-r xl:w-[380px]", showThread && "hidden md:flex")}>
-        <div className="sticky top-0 z-10 space-y-3 border-b border-neutral-100 bg-white/95 px-4 pb-3 pt-4 backdrop-blur">
+        <div className="page-wash sticky top-0 z-10 space-y-3 border-b border-[#f0e6d8] px-4 pb-3 pt-4">
           <div className="flex items-center justify-between gap-2">
             <h1 className="truncate text-xl font-bold tracking-tight">Messages</h1>
             <div className="flex shrink-0 items-center gap-1.5">
               <button
                 type="button"
-                className="inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-full border border-neutral-200 px-2.5 text-[13px] font-medium text-neutral-700 transition hover:bg-neutral-100 hover:text-neutral-950"
+                title="New Group"
+                className="inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-full border border-neutral-200 px-2.5 text-[13px] font-medium text-neutral-700 transition hover:bg-neutral-100 hover:text-neutral-950 md:w-8 md:justify-center md:px-0"
                 onClick={() => setComposerMode("group")}
               >
-                <Users size={15} />
-                New Group
+                <Users size={15} className="shrink-0" />
+                <span className="md:sr-only">New Group</span>
               </button>
               <button
                 type="button"
@@ -462,7 +499,7 @@ export function ChatView({ activeId }: { activeId?: string }) {
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
-          {loading ? (
+          {loading && list.length === 0 ? (
             <Spinner label="Loading chats" />
           ) : list.length === 0 ? (
             <div className="px-4 py-12 text-center">
@@ -488,9 +525,16 @@ export function ChatView({ activeId }: { activeId?: string }) {
                   <li key={item.id} className="group relative">
                     <Link
                       href={`/chat/${item.id}`}
+                      onMouseEnter={() => prefetchMessages(item.id)}
+                      onTouchStart={() => prefetchMessages(item.id)}
+                      onClick={(event) => {
+                        if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+                        event.preventDefault();
+                        showConversation(item.id);
+                      }}
                       className={cn(
                         "flex items-center gap-3 rounded-2xl px-3 py-2.5 transition",
-                        selected ? "bg-[#fff4e0]" : "hover:bg-neutral-50",
+                        selected ? "bg-[#fff4e0]" : "hover:bg-white/70",
                       )}
                     >
                       <ConversationAvatar convo={item} viewerId={user?.id} size={46} />
@@ -529,7 +573,7 @@ export function ChatView({ activeId }: { activeId?: string }) {
         </div>
       </section>
 
-      <section className={cn("flex min-h-0 min-w-0 flex-1 flex-col bg-gradient-to-b from-white to-[#fffaf3]", !showThread && "hidden md:flex")}>
+      <section className={cn("flex min-h-0 min-w-0 flex-1 flex-col bg-white/25", !showThread && "hidden md:flex")}>
         {!activeId && (
           <div className="grid flex-1 place-items-center px-6">
             <div className="max-w-sm text-center">
@@ -538,23 +582,23 @@ export function ChatView({ activeId }: { activeId?: string }) {
               </span>
               <h2 className="mt-5 text-2xl font-bold tracking-tight">Your messages</h2>
               <p className="mt-2 text-sm leading-6 text-neutral-500">
-                Pick a conversation on the left, or start a new one. Topic rooms are public. Direct messages and groups stay private to their members.
+                Pick a conversation on the left, or start a new one with the buttons above the list. Topic rooms are public. Direct messages and groups stay private to their members.
               </p>
-              <div className="mt-5 flex justify-center gap-2">
-                <Button type="button" onClick={() => setComposerMode("dm")}>
-                  <SquarePen size={15} /> New Message
-                </Button>
-                <Button type="button" variant="outline" onClick={() => setComposerMode("group")}>
-                  <Users size={15} /> New Group
-                </Button>
-              </div>
             </div>
           </div>
         )}
         {activeId && (
           <>
-            <header className="flex shrink-0 items-center gap-3 border-b border-neutral-200 bg-white/95 px-3 py-2.5 backdrop-blur sm:px-4">
-              <Link href="/chat" className="grid h-9 w-9 place-items-center rounded-full hover:bg-neutral-100 md:hidden" aria-label="Back to chats">
+            <header className="flex shrink-0 items-center gap-3 border-b border-[#f0e6d8] bg-[url('/bg/chat-pattern.svg')] bg-[length:240px_240px] bg-fixed bg-repeat px-3 py-2.5 sm:px-4">
+              <Link
+                href="/chat"
+                className="grid h-9 w-9 place-items-center rounded-full hover:bg-neutral-100 md:hidden"
+                aria-label="Back to chats"
+                onClick={(event) => {
+                  event.preventDefault();
+                  showConversation("");
+                }}
+              >
                 <ArrowLeft size={20} />
               </Link>
               {active && <ConversationAvatar convo={active} viewerId={user?.id} size={40} />}
@@ -600,7 +644,7 @@ export function ChatView({ activeId }: { activeId?: string }) {
               )}
             </header>
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-5">
+            <div className="min-h-0 flex-1 overflow-y-auto bg-[url('/bg/chat-pattern.svg')] bg-[length:240px_240px] bg-fixed bg-repeat px-3 py-4 sm:px-5">
               {!messagesReady ? (
                 <Spinner label="Opening chat" />
               ) : messages.length === 0 ? (
@@ -644,7 +688,7 @@ export function ChatView({ activeId }: { activeId?: string }) {
             </div>
 
             <form
-              className="shrink-0 border-t border-neutral-200 bg-white px-3 py-2.5 sm:px-4"
+              className="shrink-0 border-t border-[#f0e6d8] bg-[url('/bg/chat-pattern.svg')] bg-[length:240px_240px] bg-fixed bg-repeat px-3 py-2.5 sm:px-4"
               onSubmit={(event) => {
                 event.preventDefault();
                 send().catch((err) => setError(err instanceof Error ? err.message : "Could not send"));
@@ -768,7 +812,7 @@ export function ChatView({ activeId }: { activeId?: string }) {
           onCreated={(id) => {
             setComposerMode(null);
             loadLists().catch(() => undefined);
-            router.push(`/chat/${id}`);
+            showConversation(id);
           }}
         />
       )}
@@ -780,7 +824,7 @@ export function ChatView({ activeId }: { activeId?: string }) {
           onLeft={() => {
             setMembersOpen(false);
             loadLists().catch(() => undefined);
-            router.push("/chat");
+            showConversation("");
           }}
         />
       )}

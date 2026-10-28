@@ -317,4 +317,143 @@ router.post(
   }),
 );
 
+router.get(
+  "/admin/overview",
+  requireAuth,
+  requireAdmin,
+  wrap(async (_req, res) => {
+    const [people, posts, openReports, rooms] = await Promise.all([
+      User.countDocuments(),
+      Post.countDocuments({ deletedAt: null }),
+      Report.countDocuments({ status: "open" }),
+      Conversation.find({ type: "topic" }),
+    ]);
+    res.json({ people, posts, openReports, rooms: rooms.length });
+  }),
+);
+
+router.get(
+  "/admin/users",
+  requireAuth,
+  requireAdmin,
+  wrap(async (req, res) => {
+    const search = String(req.query.q || "").trim();
+    const users = await User.find(search ? { search } : {})
+      .sort({ createdAt: -1 })
+      .limit(40);
+    res.json({
+      users: users.map((user) => ({
+        id: String(user._id),
+        email: user.email,
+        username: user.username,
+        displayName: user.displayName,
+        role: user.role,
+        suspended: Boolean(user.suspended),
+        createdAt: user.createdAt,
+      })),
+    });
+  }),
+);
+
+router.get(
+  "/admin/posts",
+  requireAuth,
+  requireAdmin,
+  wrap(async (req, res) => {
+    const search = String(req.query.q || "").trim();
+    const filter: Record<string, unknown> = { deletedAt: null };
+    if (search) filter.text = new RegExp(escapeRegex(search), "i");
+    const posts = await Post.find(filter).sort({ createdAt: -1 }).limit(40).populate("author");
+    res.json({
+      posts: posts.map((post) => ({
+        id: String(post._id),
+        text: post.text || "",
+        createdAt: post.createdAt,
+        likeCount: post.likeCount || 0,
+        replyCount: post.replyCount || 0,
+        author: authorMini(post.author),
+      })),
+    });
+  }),
+);
+
+router.post(
+  "/admin/posts/:id/hide",
+  requireAuth,
+  requireAdmin,
+  wrap(async (req, res) => {
+    const post = await Post.findById(req.params.id);
+    if (!post || post.deletedAt) throw new HttpError(404, "Post not found");
+    post.deletedAt = new Date();
+    await post.save();
+    if (post.author && !sameId(post.author, req.user!._id)) {
+      await createNotification({
+        recipient: post.author,
+        actor: req.user!._id,
+        type: "moderation",
+        text: "A moderator removed a post you wrote",
+        link: "/notifications",
+      });
+    }
+    res.json({ ok: true });
+  }),
+);
+
+router.get(
+  "/admin/rooms",
+  requireAuth,
+  requireAdmin,
+  wrap(async (_req, res) => {
+    const rooms = await Conversation.find({ type: "topic" });
+    rooms.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    res.json({
+      rooms: rooms.map((room) => ({
+        id: String(room._id),
+        name: room.name,
+        slug: room.slug,
+        description: room.description || "",
+      })),
+    });
+  }),
+);
+
+router.patch(
+  "/admin/rooms/:id",
+  requireAuth,
+  requireAdmin,
+  wrap(async (req, res) => {
+    const body = z
+      .object({
+        name: z.string().trim().min(2).max(40).optional(),
+        slug: z.string().trim().toLowerCase().regex(/^[a-z0-9-]{2,40}$/, "Use a short hyphenated slug").optional(),
+        description: z.string().trim().max(200).optional(),
+      })
+      .parse(req.body);
+    const room = await Conversation.findById(req.params.id);
+    if (!room || room.type !== "topic") throw new HttpError(404, "Room not found");
+    if (body.slug && body.slug !== room.slug) {
+      const existing = await Conversation.findOne({ slug: body.slug });
+      if (existing) throw new HttpError(409, "A room with that slug already exists");
+      room.slug = body.slug;
+    }
+    if (body.name) room.name = body.name;
+    if (body.description != null) room.description = body.description;
+    await room.save();
+    res.json({ ok: true });
+  }),
+);
+
+router.delete(
+  "/admin/rooms/:id",
+  requireAuth,
+  requireAdmin,
+  wrap(async (req, res) => {
+    const room = await Conversation.findById(req.params.id);
+    if (!room || room.type !== "topic") throw new HttpError(404, "Room not found");
+    await Message.deleteMany({ conversation: room._id });
+    await room.deleteOne();
+    res.json({ ok: true });
+  }),
+);
+
 export default router;

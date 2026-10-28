@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { Info } from "lucide-react";
-import { Logo } from "@/components/logo";
+import { AuthLayout } from "@/components/auth-layout";
 import { Button, Field, inputClass } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -91,11 +91,8 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="mx-auto grid min-h-screen max-w-md place-items-center px-6 py-10">
-      <div className="w-full">
-        <Link href="/" aria-label="FINAZZA home">
-          <Logo />
-        </Link>
+    <AuthLayout>
+      <div>
         <h1 className="mt-6 text-3xl font-semibold">Create your account</h1>
         <form className="mt-6 space-y-3" onSubmit={submit}>
           <div className="space-y-1.5 text-sm">
@@ -166,6 +163,6 @@ export default function RegisterPage() {
           Already registered? <Link href="/login" className="text-[#c56a00]">Sign in</Link>
         </p>
       </div>
-    </main>
+    </AuthLayout>
   );
 }

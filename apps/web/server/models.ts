@@ -257,6 +257,16 @@ async function loadUsers(filter: any, opts: QueryOpts) {
   if (filter.role?.$ne) query = query.neq("role", filter.role.$ne);
   if (filter.resetTokenHash) query = query.eq("reset_token_hash", filter.resetTokenHash);
   if (filter.resetTokenExpires?.$gt) query = query.gt("reset_token_expires", iso(filter.resetTokenExpires.$gt));
+  if (typeof filter.search === "string" && filter.search.trim()) {
+    const term = filter.search.trim().replace(/[%_,()]/g, "");
+    if (term) {
+      query = query.or(
+        `email.ilike.${quoteOr(`%${term}%`)},username.ilike.${quoteOr(`%${term}%`)},display_name.ilike.${quoteOr(`%${term}%`)}`,
+      );
+    }
+  }
+  if (opts.sort?.createdAt === -1) query = query.order("created_at", { ascending: false });
+  if (opts.sort?.createdAt === 1) query = query.order("created_at", { ascending: true });
   if (Array.isArray(filter.$or) && filter.$or.some((item: any) => item.email)) {
     const email = filter.$or.find((item: any) => item.email)?.email;
     const username = filter.$or.find((item: any) => typeof item.username === "string")?.username;
@@ -1111,6 +1121,35 @@ export const ReadState = {
   },
 };
 
+/** One read-state query, then the unread counts together, instead of two queries per room. */
+export async function unreadByConversation(userId: unknown, convos: any[]) {
+  const counts = new Map<string, number>();
+  if (!convos.length) return counts;
+  const ids = convos.map((convo) => convo._id);
+  const { data, error } = await table("read_states").select("conversation_id, last_read_at").eq("user_id", idOf(userId)).in("conversation_id", ids);
+  fail(error);
+  const readAt = new Map<string, string>(((data || []) as Array<{ conversation_id: string; last_read_at: string }>).map((row) => [row.conversation_id, row.last_read_at]));
+  await Promise.all(
+    convos.map(async (convo) => {
+      const since = readAt.get(convo._id);
+      if (!since && convo.type === "topic") {
+        counts.set(convo._id, 0);
+        return;
+      }
+      counts.set(
+        convo._id,
+        await Message.countDocuments({
+          conversation: convo._id,
+          createdAt: { $gt: since ? new Date(since) : new Date(0) },
+          author: { $ne: userId },
+          deleted: false,
+        }),
+      );
+    }),
+  );
+  return counts;
+}
+
 function mapNotification(row: any) {
   const doc: any = {
     _id: row.id,
@@ -1219,6 +1258,7 @@ function mapReport(row: any) {
 async function loadReports(filter: any, opts: QueryOpts) {
   let query = table("reports").select("*");
   if (filter._id) query = query.eq("id", idOf(filter._id));
+  if (filter.status) query = query.eq("status", filter.status);
   if (opts.sort?.createdAt === -1) query = query.order("created_at", { ascending: false });
   query = windowed(query, opts);
   const { data, error } = await query;
@@ -1252,6 +1292,13 @@ export const Report = {
       .single();
     fail(error);
     return mapReport(data);
+  },
+  async countDocuments(filter: any = {}) {
+    let query = table("reports").select("id", { count: "exact", head: true });
+    if (filter.status) query = query.eq("status", filter.status);
+    const { count, error } = await query;
+    fail(error);
+    return count || 0;
   },
 };
 

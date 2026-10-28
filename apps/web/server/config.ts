@@ -36,6 +36,7 @@ export const config = {
   resendApiKey: process.env.RESEND_API_KEY || "",
   emailFrom: process.env.EMAIL_FROM || "FINAZZA <noreply@finazza.app>",
   isProd: nodeEnv === "production",
+  siteAdminEmails: ["ibneyousaf86@gmail.com", "waikintse2@ln.hk"],
 };
 
 export const PROOF_LABEL = "Proof uploaded — not verified by the platform";

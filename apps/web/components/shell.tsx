@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Bell, Bookmark, Compass, Home, LogOut, MessageCircle, PieChart, Settings, SquarePen } from "lucide-react";
 import { api } from "@/lib/api";
+import { prefetchMessages } from "@/lib/chat-cache";
 import { useAuth } from "@/lib/auth";
 import type { Conversation, Investment } from "@/lib/types";
 import { DISCLAIMER, cn } from "@/lib/utils";
@@ -51,7 +52,7 @@ function SideNav() {
                 href={href}
                 className={cn(
                   "flex items-center gap-3 rounded-full px-4 py-3 text-[1.05rem]",
-                  active ? "bg-neutral-100 font-semibold" : "hover:bg-neutral-100",
+                  active ? "bg-white font-semibold shadow-sm ring-1 ring-[#f0e6d8]" : "hover:bg-white/70",
                 )}
               >
                 <Icon size={22} />
@@ -65,7 +66,7 @@ function SideNav() {
             );
           })}
           {user?.role === "admin" && (
-            <Link href="/admin" className={cn("flex items-center gap-3 rounded-full px-4 py-3", pathname.startsWith("/admin") && "bg-neutral-100 font-semibold")}>
+            <Link href="/admin" className={cn("flex items-center gap-3 rounded-full px-4 py-3", pathname.startsWith("/admin") ? "bg-white font-semibold shadow-sm ring-1 ring-[#f0e6d8]" : "hover:bg-white/70")}>
               <Settings size={22} /> Admin
             </Link>
           )}
@@ -77,7 +78,7 @@ function SideNav() {
       <button
         type="button"
         aria-label="Log out"
-        className="mt-2 flex shrink-0 items-center gap-3 rounded-full border-t border-neutral-200 px-3 py-3 text-left hover:bg-neutral-100"
+        className="mt-2 flex shrink-0 items-center gap-3 rounded-full border-t border-[#f0e6d8] px-3 py-3 text-left hover:bg-white/70"
         onClick={() => {
           logout();
           router.replace("/");
@@ -159,13 +160,14 @@ export function Shell({ children }: { children: React.ReactNode }) {
   }, [pathname]);
 
   return (
-    <div className="min-h-screen bg-white text-neutral-950">
+    <div className="relative isolate min-h-screen bg-[#fffaf3] text-neutral-950">
+      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 bg-[url('/bg/app-bg.svg')] bg-cover bg-center bg-no-repeat" />
       <div className="mx-auto flex min-h-screen w-full max-w-[1760px]">
         <aside className="sticky top-0 hidden h-screen w-[260px] shrink-0 px-3 py-4 lg:flex xl:w-[280px]">
           <SideNav />
         </aside>
 
-        <main className="min-h-screen w-full min-w-0 flex-1 border-x border-neutral-200 pb-24 lg:pb-0">{children}</main>
+        <main className="min-h-screen w-full min-w-0 flex-1 border-x border-[#f0e6d8] bg-white/35 pb-24 lg:bg-white/45 lg:pb-0">{children}</main>
         <RightRail />
       </div>
 
@@ -216,6 +218,7 @@ function RightRail() {
       .then(([portfolio, chat]) => {
         setItems(portfolio.investments.slice(0, 4));
         setRooms(chat.conversations.slice(0, 5));
+        for (const room of chat.conversations) prefetchMessages(room.id);
       })
       .catch(() => undefined)
       .finally(() => setLoading(false));
@@ -223,7 +226,7 @@ function RightRail() {
 
   return (
     <aside className="sticky top-0 hidden h-screen w-[340px] shrink-0 overflow-y-auto px-5 py-4 xl:block 2xl:w-[400px]">
-      <section className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+      <section className="rounded-2xl border border-[#f0e6d8] bg-white/85 p-4 shadow-[0_20px_44px_-36px_rgba(120,70,0,0.55)] backdrop-blur-sm">
         <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-neutral-500">Portfolio snapshot</h2>
         {loading ? (
           <Spinner label="Loading records" />
@@ -244,12 +247,12 @@ function RightRail() {
         </Link>
       </section>
 
-      <section className="mt-4 rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+      <section className="mt-4 rounded-2xl border border-[#f0e6d8] bg-white/85 p-4 shadow-[0_20px_44px_-36px_rgba(120,70,0,0.55)] backdrop-blur-sm">
         <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-neutral-500">Topic rooms</h2>
         <ul className="mt-3 space-y-2">
           {rooms.map((room) => (
             <li key={room.id}>
-              <Link href={`/chat/${room.id}`} className="block rounded-xl px-2 py-1.5 hover:bg-neutral-100">
+              <Link href={`/chat/${room.id}`} onMouseEnter={() => prefetchMessages(room.id)} className="block rounded-xl px-2 py-1.5 hover:bg-[#fff4e0]">
                 <span className="block text-sm">#{room.slug}</span>
                 <span className="block text-xs text-neutral-500">{room.description}</span>
               </Link>
@@ -264,7 +267,7 @@ function RightRail() {
 
 export function PageHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
-    <header className="sticky top-0 z-20 border-b border-neutral-200 bg-white/95 px-4 py-3 backdrop-blur">
+    <header className="page-wash sticky top-0 z-20 border-b border-[#f0e6d8] px-4 py-3">
       <h1 className="text-xl font-semibold">{title}</h1>
       {subtitle && <p className="text-sm text-neutral-500">{subtitle}</p>}
     </header>
@@ -273,7 +276,7 @@ export function PageHeader({ title, subtitle }: { title: string; subtitle?: stri
 
 export function FullScreenLoader() {
   return (
-    <div className="grid min-h-screen place-items-center bg-white text-neutral-950">
+    <div className="grid min-h-screen place-items-center bg-[#fffaf3] bg-[url('/bg/app-bg.svg')] bg-cover bg-center text-neutral-950">
       <div className="text-center">
         <Logo />
         <Spinner />
