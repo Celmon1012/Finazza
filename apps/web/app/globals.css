@@ -66,3 +66,110 @@ select:focus-visible {
   background-clip: text;
   color: transparent;
 }
+
+.reveal {
+  opacity: 0;
+  transform: translate3d(0, 32px, 0);
+  filter: blur(6px);
+  transition:
+    opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+
+.reveal[data-variant="left"] {
+  transform: translate3d(-40px, 0, 0);
+}
+
+.reveal[data-variant="right"] {
+  transform: translate3d(40px, 0, 0);
+}
+
+.reveal[data-variant="scale"] {
+  transform: translate3d(0, 20px, 0) scale(0.94);
+}
+
+.reveal.is-visible {
+  opacity: 1;
+  transform: none;
+  filter: none;
+}
+
+@keyframes float-soft {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.float-soft {
+  animation: float-soft 7s ease-in-out infinite;
+}
+
+@keyframes draw-line {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes dot-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.5);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.draw-line {
+  stroke-dasharray: 420;
+  stroke-dashoffset: 420;
+}
+
+.draw-dot {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.is-visible .draw-line {
+  animation: draw-line 1.8s cubic-bezier(0.65, 0, 0.35, 1) 0.5s forwards;
+}
+
+.is-visible .draw-dot {
+  animation: dot-pop 0.5s ease-out 2.2s forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .reveal[data-variant] {
+    opacity: 1;
+    transform: none;
+    filter: none;
+    transition: none;
+  }
+
+  .float-soft,
+  .is-visible .draw-line,
+  .is-visible .draw-dot {
+    animation: none;
+  }
+
+  .draw-line {
+    stroke-dashoffset: 0;
+  }
+
+  .draw-dot {
+    opacity: 1;
+  }
+}

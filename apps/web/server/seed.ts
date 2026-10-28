@@ -261,7 +261,7 @@ export async function seedIfEmpty() {
       type: "topic",
       name: "Stocks & ETFs",
       slug: "stocks-etfs",
-      description: "Listed shares and funds. Manual records only.",
+      description: "Listed shares and funds.",
       createdBy: admin._id,
       lastMessageAt: daysAgo(3),
       lastMessageText: "Keep trade notes specific, and skip the price targets dressed up as certainty.",
