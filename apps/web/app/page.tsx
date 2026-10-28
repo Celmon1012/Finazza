@@ -16,7 +16,7 @@ const rooms = [
 ];
 
 const steps = [
-  ["1", "Write down your positions", "Enter your closed trade and current portfolio into your investment profile."],
+  ["1", "Write down your positions", "Enter your closed trades and current portfolio into your investment profile."],
   [
     "2",
     "Show the proof of investment",
@@ -122,7 +122,7 @@ export default function LandingPage() {
           <div className="flex flex-wrap items-end justify-between gap-6">
             <div>
               <p className="text-xs uppercase tracking-[0.18em] text-[#a16207]">Topical chatrooms</p>
-              <h2 className="mt-3 max-w-xl font-serif text-4xl leading-tight sm:text-5xl">Five topical chatrooms on day one. More when an admin opens new ones.</h2>
+              <h2 className="mt-3 max-w-xl font-serif text-4xl leading-tight sm:text-5xl">Five topical chatrooms on day one. More when admin opens new ones.</h2>
             </div>
             <Link href="/login" className="text-sm font-medium text-[#a16207] underline decoration-[#f0d7a4] underline-offset-4">
               Read them in the demo
