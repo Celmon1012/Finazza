@@ -117,20 +117,53 @@ function OverviewTab({ onError }: { onError: (message: string) => void }) {
   );
 }
 
+const PAGE_SIZE = 10;
+
+function PageBar({ page, total, onPage }: { page: number; total: number; onPage: (page: number) => void }) {
+  if (total <= 0) return null;
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#f0e6d8] px-4 py-3">
+      <p className="text-xs text-neutral-500">
+        {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} of {total}
+      </p>
+      <div className="flex items-center gap-2">
+        <Button type="button" variant="outline" disabled={page <= 1} onClick={() => onPage(page - 1)}>
+          Previous
+        </Button>
+        <span className="text-xs text-neutral-500">
+          Page {page} of {pages}
+        </span>
+        <Button type="button" variant="outline" disabled={page >= pages} onClick={() => onPage(page + 1)}>
+          Next
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function PeopleTab({ onError }: { onError: (message: string) => void }) {
   const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [users, setUsers] = useState<AdminUser[] | null>(null);
   const [busy, setBusy] = useState("");
 
-  function load(q = query) {
-    const path = q.trim() ? `/api/admin/users?q=${encodeURIComponent(q.trim())}` : "/api/admin/users";
-    return api<{ users: AdminUser[] }>(path)
-      .then((data) => setUsers(data.users))
+  function load(q = query, nextPage = page) {
+    const params = new URLSearchParams();
+    if (q.trim()) params.set("q", q.trim());
+    params.set("page", String(nextPage));
+    return api<{ users: AdminUser[]; total: number; page: number }>(`/api/admin/users?${params}`)
+      .then((data) => {
+        setUsers(data.users);
+        setTotal(data.total);
+        setPage(data.page);
+      })
       .catch((err) => onError(err instanceof Error ? err.message : "Could not load people"));
   }
 
   useEffect(() => {
-    load("").catch(() => undefined);
+    load("", 1).catch(() => undefined);
   }, []);
 
   async function setSuspended(person: AdminUser, suspended: boolean) {
@@ -151,7 +184,7 @@ function PeopleTab({ onError }: { onError: (message: string) => void }) {
         className="flex gap-2 border-b border-[#f0e6d8] px-4 py-3"
         onSubmit={(event) => {
           event.preventDefault();
-          load().catch(() => undefined);
+          load(query, 1).catch(() => undefined);
         }}
       >
         <input className={inputClass} placeholder="Search name, username, or email" value={query} onChange={(event) => setQuery(event.target.value)} />
@@ -187,24 +220,33 @@ function PeopleTab({ onError }: { onError: (message: string) => void }) {
           ))}
         </ul>
       )}
+      {users && <PageBar page={page} total={total} onPage={(next) => load(query, next).catch(() => undefined)} />}
     </div>
   );
 }
 
 function PostsTab({ onError }: { onError: (message: string) => void }) {
   const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [posts, setPosts] = useState<AdminPost[] | null>(null);
   const [busy, setBusy] = useState("");
 
-  function load(q = query) {
-    const path = q.trim() ? `/api/admin/posts?q=${encodeURIComponent(q.trim())}` : "/api/admin/posts";
-    return api<{ posts: AdminPost[] }>(path)
-      .then((data) => setPosts(data.posts))
+  function load(q = query, nextPage = page) {
+    const params = new URLSearchParams();
+    if (q.trim()) params.set("q", q.trim());
+    params.set("page", String(nextPage));
+    return api<{ posts: AdminPost[]; total: number; page: number }>(`/api/admin/posts?${params}`)
+      .then((data) => {
+        setPosts(data.posts);
+        setTotal(data.total);
+        setPage(data.page);
+      })
       .catch((err) => onError(err instanceof Error ? err.message : "Could not load posts"));
   }
 
   useEffect(() => {
-    load("").catch(() => undefined);
+    load("", 1).catch(() => undefined);
   }, []);
 
   async function hide(post: AdminPost) {
@@ -212,7 +254,7 @@ function PostsTab({ onError }: { onError: (message: string) => void }) {
     setBusy(post.id);
     try {
       await api(`/api/admin/posts/${post.id}/hide`, { method: "POST" });
-      setPosts((current) => current?.filter((item) => item.id !== post.id) || null);
+      await load(query, page);
     } catch (err) {
       onError(err instanceof Error ? err.message : "Could not hide the post");
     } finally {
@@ -226,7 +268,7 @@ function PostsTab({ onError }: { onError: (message: string) => void }) {
         className="flex gap-2 border-b border-[#f0e6d8] px-4 py-3"
         onSubmit={(event) => {
           event.preventDefault();
-          load().catch(() => undefined);
+          load(query, 1).catch(() => undefined);
         }}
       >
         <input className={inputClass} placeholder="Search post text" value={query} onChange={(event) => setQuery(event.target.value)} />
@@ -260,6 +302,7 @@ function PostsTab({ onError }: { onError: (message: string) => void }) {
           ))}
         </ul>
       )}
+      {posts && <PageBar page={page} total={total} onPage={(next) => load(query, next).catch(() => undefined)} />}
     </div>
   );
 }
@@ -380,24 +423,30 @@ function RoomsTab({ onError }: { onError: (message: string) => void }) {
 }
 
 function ReportsTab({ onError }: { onError: (message: string) => void }) {
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [reports, setReports] = useState<Report[] | null>(null);
   const [busy, setBusy] = useState("");
 
-  function load() {
-    return api<{ reports: Report[] }>("/api/admin/reports")
-      .then((data) => setReports(data.reports))
+  function load(nextPage = page) {
+    return api<{ reports: Report[]; total: number; page: number }>(`/api/admin/reports?page=${nextPage}`)
+      .then((data) => {
+        setReports(data.reports);
+        setTotal(data.total);
+        setPage(data.page);
+      })
       .catch((err) => onError(err instanceof Error ? err.message : "Could not load reports"));
   }
 
   useEffect(() => {
-    load().catch(() => undefined);
+    load(1).catch(() => undefined);
   }, []);
 
   async function act(id: string, action: "dismiss" | "hide" | "suspend") {
     setBusy(id);
     try {
       await api(`/api/admin/reports/${id}`, { method: "POST", body: JSON.stringify({ action }) });
-      await load();
+      await load(page);
     } catch (err) {
       onError(err instanceof Error ? err.message : "Could not update the report");
     } finally {
@@ -405,35 +454,41 @@ function ReportsTab({ onError }: { onError: (message: string) => void }) {
     }
   }
 
-  if (!reports) return <Spinner label="Loading reports" />;
-  if (reports.length === 0) return <Empty title="No reports" body="Reports from members will show up here." />;
-
   return (
-    <ul>
-      {reports.map((report) => (
-        <li key={report.id} className="border-b border-[#f0e6d8] px-4 py-3 text-sm">
-          <p>
-            <span className="font-semibold">{report.reason}</span> · {report.targetType} · {report.status}
-          </p>
-          <p className="text-neutral-500">
-            {report.reporter?.displayName || "Someone"} · {timeAgo(report.createdAt)}
-          </p>
-          {report.details && <p className="mt-1">{report.details}</p>}
-          {report.status === "open" && (
-            <div className="mt-2 flex flex-wrap gap-2">
-              <Button variant="ghost" disabled={busy === report.id} onClick={() => act(report.id, "hide")}>
-                Hide
-              </Button>
-              <Button variant="danger" disabled={busy === report.id} onClick={() => act(report.id, "suspend")}>
-                Hide and suspend
-              </Button>
-              <Button variant="outline" disabled={busy === report.id} onClick={() => act(report.id, "dismiss")}>
-                Dismiss
-              </Button>
-            </div>
-          )}
-        </li>
-      ))}
-    </ul>
+    <div>
+      {!reports ? (
+        <Spinner label="Loading reports" />
+      ) : reports.length === 0 ? (
+        <Empty title="No reports" body="Reports from members will show up here." />
+      ) : (
+        <ul>
+          {reports.map((report) => (
+            <li key={report.id} className="border-b border-[#f0e6d8] px-4 py-3 text-sm">
+              <p>
+                <span className="font-semibold">{report.reason}</span> · {report.targetType} · {report.status}
+              </p>
+              <p className="text-neutral-500">
+                {report.reporter?.displayName || "Someone"} · {timeAgo(report.createdAt)}
+              </p>
+              {report.details && <p className="mt-1">{report.details}</p>}
+              {report.status === "open" && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Button variant="ghost" disabled={busy === report.id} onClick={() => act(report.id, "hide")}>
+                    Hide
+                  </Button>
+                  <Button variant="danger" disabled={busy === report.id} onClick={() => act(report.id, "suspend")}>
+                    Hide and suspend
+                  </Button>
+                  <Button variant="outline" disabled={busy === report.id} onClick={() => act(report.id, "dismiss")}>
+                    Dismiss
+                  </Button>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {reports && <PageBar page={page} total={total} onPage={(next) => load(next).catch(() => undefined)} />}
+    </div>
   );
 }

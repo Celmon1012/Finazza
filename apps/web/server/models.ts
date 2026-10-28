@@ -331,8 +331,17 @@ export const User = {
     const { error } = await query;
     fail(error);
   },
-  async countDocuments() {
-    const { count, error } = await table("profiles").select("id", { count: "exact", head: true });
+  async countDocuments(filter: { search?: string } = {}) {
+    let query = table("profiles").select("id", { count: "exact", head: true });
+    if (typeof filter.search === "string" && filter.search.trim()) {
+      const term = filter.search.trim().replace(/[%_,()]/g, "");
+      if (term) {
+        query = query.or(
+          `email.ilike.${quoteOr(`%${term}%`)},username.ilike.${quoteOr(`%${term}%`)},display_name.ilike.${quoteOr(`%${term}%`)}`,
+        );
+      }
+    }
+    const { count, error } = await query;
     fail(error);
     return count || 0;
   },
@@ -545,6 +554,7 @@ export const Post = {
     if (filter.author) query = query.eq("author_id", idOf(filter.author));
     if (filter.deletedAt === null) query = query.is("deleted_at", null);
     if ("replyTo" in filter && filter.replyTo == null) query = query.is("reply_to", null);
+    if (filter.text instanceof RegExp) query = query.ilike("text", `%${patternTerm(filter.text)}%`);
     const { count, error } = await query;
     fail(error);
     return count || 0;

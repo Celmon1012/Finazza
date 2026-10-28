@@ -12,6 +12,14 @@ import { saveAudio, saveUpload } from "../storage.js";
 
 const router = Router();
 
+function pageOf(value: unknown, total: number, pageSize = 10) {
+  const requested = Number(value);
+  const page = Number.isFinite(requested) && requested > 0 ? Math.floor(requested) : 1;
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  const safePage = Math.min(page, pages);
+  return { pageSize, page: safePage, skip: (safePage - 1) * pageSize };
+}
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 8 * 1024 * 1024, files: 4 },
@@ -167,8 +175,10 @@ router.get(
   "/admin/reports",
   requireAuth,
   requireAdmin,
-  wrap(async (_req, res) => {
-    const reports = await Report.find().sort({ createdAt: -1 }).limit(100).populate("reporter", "username displayName avatarUrl");
+  wrap(async (req, res) => {
+    const total = await Report.countDocuments();
+    const { pageSize, page, skip } = pageOf(req.query.page, total);
+    const reports = await Report.find().sort({ createdAt: -1 }).skip(skip).limit(pageSize).populate("reporter", "username displayName avatarUrl");
     res.json({
       reports: reports.map((report) => ({
         id: String(report._id),
@@ -180,6 +190,9 @@ router.get(
         createdAt: report.createdAt,
         reporter: authorMini(report.reporter),
       })),
+      total,
+      page,
+      pageSize,
     });
   }),
 );
@@ -338,9 +351,10 @@ router.get(
   requireAdmin,
   wrap(async (req, res) => {
     const search = String(req.query.q || "").trim();
-    const users = await User.find(search ? { search } : {})
-      .sort({ createdAt: -1 })
-      .limit(40);
+    const filter = search ? { search } : {};
+    const total = await User.countDocuments(filter);
+    const { pageSize, page, skip } = pageOf(req.query.page, total);
+    const users = await User.find(filter).sort({ createdAt: -1 }).skip(skip).limit(pageSize);
     res.json({
       users: users.map((user) => ({
         id: String(user._id),
@@ -351,6 +365,9 @@ router.get(
         suspended: Boolean(user.suspended),
         createdAt: user.createdAt,
       })),
+      total,
+      page,
+      pageSize,
     });
   }),
 );
@@ -363,7 +380,9 @@ router.get(
     const search = String(req.query.q || "").trim();
     const filter: Record<string, unknown> = { deletedAt: null };
     if (search) filter.text = new RegExp(escapeRegex(search), "i");
-    const posts = await Post.find(filter).sort({ createdAt: -1 }).limit(40).populate("author");
+    const total = await Post.countDocuments(filter);
+    const { pageSize, page, skip } = pageOf(req.query.page, total);
+    const posts = await Post.find(filter).sort({ createdAt: -1 }).skip(skip).limit(pageSize).populate("author");
     res.json({
       posts: posts.map((post) => ({
         id: String(post._id),
@@ -373,6 +392,9 @@ router.get(
         replyCount: post.replyCount || 0,
         author: authorMini(post.author),
       })),
+      total,
+      page,
+      pageSize,
     });
   }),
 );
