@@ -25,7 +25,7 @@ export default function TermsPage() {
             {
               bullets: [
                 "Content is user opinion. Posts, comments, chat messages, investment records, returns, proof, annotated charts and profiles are created by users. They reflect the personal views and experience of those users, not FINAZZA. We do not endorse any user, strategy or asset.",
-                'Records are not verified. Trades, holdings, prices, returns and proof of investment are entered and uploaded by users. FINAZZA does not verify them. Proof is labelled "Proof uploaded — not verified by the platform". A record may be inaccurate, incomplete, out of date or fake.',
+                'Records are not verified. Trades, holdings, prices, returns and proof of investment are entered and uploaded by users. FINAZZA does not verify them. Proof of investment is labelled "Proof uploaded — not verified by the platform". A record may be inaccurate, incomplete, out of date or fake.',
                 "Returns are simple calculations. Any return shown is calculated only from the values a user entered (for example buy and sale price), is gross, and does not account for fees, taxes, currency movements, partial sales or other costs. Current holdings do not show realised returns.",
                 "Past performance does not predict future results. Investing involves risk, including the loss of all of your capital. Commodities and collectibles can be illiquid, hard to value and subject to fraud, counterfeiting and storage risks.",
                 "Do your own research. You are solely responsible for your investment decisions. Consider getting independent advice from a licensed professional who knows your circumstances.",
@@ -57,7 +57,7 @@ export default function TermsPage() {
         {
           heading: "5. The Service",
           blocks: [
-            "FINAZZA lets you publish posts and follow other members in an X.com-style feed; build a profile with past trades and current holdings for stocks, ETFs, commodities, collectibles and other assets; upload proof of investment; chat in public topic rooms, one-to-one direct messages and private group chats; receive in-app notifications; and, where available, annotate uploaded chart images.",
+            "FINAZZA lets you publish posts and follow other members in a news feed; build a profile with past trades and current holdings for stocks, ETFs, commodities, collectibles and other assets; upload proof of investment; chat in public topic rooms, one-to-one direct messages and private group chats; receive in-app notifications; and, where available, annotate uploaded chart images.",
             'The Service is currently free to use. We may add, change, suspend or remove features (for example adding mobile apps or changing limits such as the maximum group size) at any time. We will try to give notice of material changes that adversely affect you. The Service is provided on an "as available" basis and may sometimes be unavailable.',
           ],
         },

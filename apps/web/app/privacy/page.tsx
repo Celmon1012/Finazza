@@ -22,7 +22,7 @@ export default function PrivacyPage() {
         {
           heading: "2. The most important thing to know: much of FINAZZA is public",
           blocks: [
-            "FINAZZA is built around public sharing, much like X.com. Unless a feature is described as private, assume that what you post can be seen by anyone, including people who are not logged in and search engines. In particular:",
+            "FINAZZA is built around public sharing. Unless a feature is described as private, assume that what you post can be seen by anyone, including people who are not logged in and search engines. In particular:",
             {
               bullets: [
                 "Public by design: your profile (username, display name, avatar, header image, bio, follower and following counts), your posts, replies and reposts, your past trades and current holdings, any proof of investment you upload, annotated charts you post, and messages you send in public topic rooms.",
