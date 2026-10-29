@@ -285,7 +285,9 @@ export function InvestmentCard({
         ) : (
           <>
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#c56a00]">Proof of investment</p>
-            <p className="mt-2 text-sm text-neutral-600">No photo yet. Upload a receipt or photo, then cover the sensitive details.</p>
+            <p className="mt-2 text-sm text-neutral-600">
+              {mine ? "No photo yet. Upload a receipt or photo, then cover the sensitive details." : "No photo yet."}
+            </p>
             {mine && (
               <div className="mt-3">
                 <Button type="button" className="h-10 w-full" onClick={onUploadProof}>
