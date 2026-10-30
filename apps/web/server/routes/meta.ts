@@ -7,6 +7,7 @@ import { HttpError, wrap } from "../http.js";
 import { Conversation, Message, Notification, Post, Proof, Report, User, sameId } from "../models.js";
 import { createNotification } from "../notify.js";
 import { authorMini, notificationDto, postPopulate, presentPosts, savedPostIds } from "../present.js";
+import { getLinkPreview } from "../link-preview.js";
 import { escapeRegex } from "../social.js";
 import { saveAudio, saveUpload } from "../storage.js";
 
@@ -31,6 +32,28 @@ const uploadLimiter = rateLimit({
   message: { error: "Too many uploads. Try again shortly." },
   keyGenerator: (req) => String(req.user?._id || req.ip),
 });
+
+const linkPreviewLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 60,
+  message: { error: "Too many link previews. Try again shortly." },
+  keyGenerator: (req) => String(req.user?._id || req.ip),
+});
+
+router.get(
+  "/link-preview",
+  requireAuth,
+  linkPreviewLimiter,
+  wrap(async (req, res) => {
+    const raw = String(req.query.url || "").trim();
+    if (!raw) {
+      res.json({ url: "", title: null, description: null, imageUrl: null, siteName: null });
+      return;
+    }
+    const preview = await getLinkPreview(raw);
+    res.json(preview);
+  }),
+);
 
 router.post(
   "/uploads",

@@ -17,3 +17,5 @@ apps/api/data
 coverage
 tsconfig.tsbuildinfo
 apps/web/tsconfig.tsbuildinfo
+
+apps/web/server-dist/

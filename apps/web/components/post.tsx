@@ -7,6 +7,7 @@ import { api, mediaUrl } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import type { Post } from "@/lib/types";
 import { cn, timeAgo } from "@/lib/utils";
+import { LinkPreview } from "./link-preview";
 import { ReportButton } from "./report-button";
 import { RichText } from "./rich-text";
 import { Avatar, Button } from "./ui";
@@ -105,6 +106,7 @@ export function Composer({
             ))}
           </div>
         )}
+        <LinkPreview text={text} className="mb-3 block overflow-hidden rounded-2xl border border-[#f0e6d8] bg-white/80 transition hover:bg-white" />
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-3 text-[#c56a00]">
             <label className="cursor-pointer">
@@ -250,6 +252,7 @@ export function PostCard({ post, onChange, onBookmark }: { post: Post; onChange?
             </p>
           )}
           {post.text && <RichText text={post.text} className="mt-1 whitespace-pre-wrap break-words text-[15px] leading-6" />}
+          {post.text && <LinkPreview text={post.text} />}
           <AttachmentGrid files={post.attachments} />
           {post.repostOf && <Embedded post={post.repostOf} />}
           <div className="mt-3 flex max-w-md items-center justify-between text-neutral-500">

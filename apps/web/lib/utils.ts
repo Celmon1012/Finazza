@@ -1,3 +1,11 @@
+const URL_IN_TEXT = /https?:\/\/[^\s]+/i;
+
+export function firstUrlInText(text: string) {
+  const match = text.match(URL_IN_TEXT);
+  if (!match?.[0]) return null;
+  return match[0].replace(/[),.;!?]+$/g, "");
+}
+
 export function cn(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(" ");
 }
