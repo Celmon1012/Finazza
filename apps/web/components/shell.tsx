@@ -154,6 +154,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || "";
   const { user, badges } = useAuth();
   const [accountOpen, setAccountOpen] = useState(false);
+  // Chat already lists rooms in its own column; the right rail just squeezes the thread on laptops.
+  const hideRightRail = pathname === "/chat" || pathname.startsWith("/chat/");
 
   useEffect(() => {
     setAccountOpen(false);
@@ -168,7 +170,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         </aside>
 
         <main className="min-h-screen w-full min-w-0 flex-1 border-x border-[#f0e6d8] bg-white/35 pb-24 lg:bg-white/45 lg:pb-0">{children}</main>
-        <RightRail />
+        {!hideRightRail && <RightRail />}
       </div>
 
       {accountOpen && <AccountSheet onClose={() => setAccountOpen(false)} />}
