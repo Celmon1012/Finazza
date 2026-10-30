@@ -5,6 +5,7 @@ import { PostCard } from "@/components/post";
 import { PageHeader } from "@/components/shell";
 import { Empty, Spinner } from "@/components/ui";
 import { api } from "@/lib/api";
+import { applyRemoved, applyRestored } from "@/lib/posts-sync";
 import type { Post } from "@/lib/types";
 
 export default function BookmarksPage() {
@@ -32,6 +33,8 @@ export default function BookmarksPage() {
           onBookmark={(saved) => {
             if (!saved) setPosts((current) => current.filter((item) => item.id !== post.id));
           }}
+          onRemoved={(id) => setPosts((current) => applyRemoved(current, id))}
+          onRestored={(item) => setPosts((current) => applyRestored(current, item))}
         />
       ))}
     </div>

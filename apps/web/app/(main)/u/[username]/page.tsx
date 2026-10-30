@@ -9,6 +9,7 @@ import { ReportButton } from "@/components/report-button";
 import { Avatar, AvatarPicker, Button, Spinner } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { applyRemoved, applyRestored } from "@/lib/posts-sync";
 import type { Conversation, Investment, Post, Profile } from "@/lib/types";
 
 export default function ProfilePage() {
@@ -175,7 +176,14 @@ function ProfileScreen() {
           ) : posts.length === 0 ? (
             <p className="px-4 py-8 text-sm text-neutral-500">No posts yet.</p>
           ) : (
-            posts.map((post) => <PostCard key={post.id} post={post} />)
+            posts.map((post) => (
+              <PostCard
+                key={post.id}
+                post={post}
+                onRemoved={(id) => setPosts((current) => applyRemoved(current, id))}
+                onRestored={(item) => setPosts((current) => applyRestored(current, item))}
+              />
+            ))
           )}
         </section>
       )}

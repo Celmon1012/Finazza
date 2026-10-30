@@ -207,10 +207,13 @@ router.delete(
   "/:id",
   wrap(async (req, res) => {
     const post = await Post.findById(req.params.id);
-    if (!post || post.deletedAt) throw new HttpError(404, "Post unavailable");
+    if (!post) throw new HttpError(404, "Post unavailable");
     if (!sameId(post.author, req.user!._id) && req.user!.role !== "admin") throw new HttpError(403, "You cannot remove this post");
-    post.deletedAt = new Date();
-    await post.save();
+    // Idempotent: already soft-deleted counts as success so the client can sync UI safely.
+    if (!post.deletedAt) {
+      post.deletedAt = new Date();
+      await post.save();
+    }
     res.json({ ok: true });
   }),
 );

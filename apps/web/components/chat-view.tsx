@@ -196,7 +196,13 @@ export function ChatView() {
     fetchMessages(activeId)
       .then((items) => {
         if (cancelled) return;
-        setMessages(items);
+        // Keep in-flight optimistic sends; a slow first fetch must not wipe them.
+        setMessages((current) => {
+          const pending = current.filter(isPending);
+          if (!pending.length) return items;
+          const seen = new Set(items.map((item) => item.id));
+          return [...items, ...pending.filter((item) => !seen.has(item.id))];
+        });
         setMessagesReady(true);
       })
       .catch((err) => {
@@ -303,9 +309,10 @@ export function ChatView() {
         method: "POST",
         body: JSON.stringify(body),
       });
-      setMessages((current) =>
-        current.filter((item) => item.id !== result.message.id).map((item) => (item.id === pendingId ? result.message : item)),
-      );
+      setMessages((current) => {
+        const withoutDup = current.filter((item) => item.id !== result.message.id && item.id !== pendingId);
+        return [...withoutDup, result.message];
+      });
       loadLists().catch(() => undefined);
     } catch (err) {
       setMessages((current) => current.filter((item) => item.id !== pendingId));
@@ -360,9 +367,10 @@ export function ChatView() {
         method: "POST",
         body: JSON.stringify({ text: "", audioUrl: upload.url }),
       });
-      setMessages((current) =>
-        current.filter((item) => item.id !== result.message.id).map((item) => (item.id === pendingId ? result.message : item)),
-      );
+      setMessages((current) => {
+        const withoutDup = current.filter((item) => item.id !== result.message.id && item.id !== pendingId);
+        return [...withoutDup, result.message];
+      });
       loadLists().catch(() => undefined);
     } catch (err) {
       setMessages((current) => current.filter((item) => item.id !== pendingId));

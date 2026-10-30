@@ -1,16 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Composer, PostCard } from "@/components/post";
 import { Spinner } from "@/components/ui";
 import { api } from "@/lib/api";
+import { applyPosted, applyRemoved, applyRestored } from "@/lib/posts-sync";
 import type { Post } from "@/lib/types";
 
 export default function PostPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const id = params?.id ?? "";
   const [post, setPost] = useState<Post | null>(null);
   const [replies, setReplies] = useState<Post[]>([]);
@@ -37,21 +39,38 @@ export default function PostPage() {
       </header>
       {error && <p className="px-4 py-6 text-sm text-[#ff5d73]">{error}</p>}
       {!post && !error && <Spinner />}
-      {post && <PostCard post={post} onChange={load} />}
+      {post && (
+        <PostCard
+          post={post}
+          onChange={load}
+          onRemoved={() => {
+            setPost(null);
+            router.replace("/home");
+          }}
+        />
+      )}
       <Composer
         replyTo={id}
         placeholder="Post your reply"
         onPosted={(reply, replaceId) => {
-          setReplies((current) => {
-            if (replaceId && !reply) return current.filter((item) => item.id !== replaceId);
-            if (replaceId && reply) return current.map((item) => (item.id === replaceId ? reply : item));
-            return reply ? [...current, reply] : current;
-          });
+          setReplies((current) => applyPosted(current, reply, replaceId));
           if (!replaceId && reply) setPost((current) => (current ? { ...current, replyCount: current.replyCount + 1 } : current));
+          if (replaceId && !reply) setPost((current) => (current ? { ...current, replyCount: Math.max(0, current.replyCount - 1) } : current));
         }}
       />
       {replies.map((reply) => (
-        <PostCard key={reply.id} post={reply} />
+        <PostCard
+          key={reply.id}
+          post={reply}
+          onRemoved={(replyId) => {
+            setReplies((current) => applyRemoved(current, replyId));
+            setPost((current) => (current ? { ...current, replyCount: Math.max(0, current.replyCount - 1) } : current));
+          }}
+          onRestored={(item) => {
+            setReplies((current) => applyRestored(current, item));
+            setPost((current) => (current ? { ...current, replyCount: current.replyCount + 1 } : current));
+          }}
+        />
       ))}
     </div>
   );

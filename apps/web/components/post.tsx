@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Bookmark, Heart, ImagePlus, MessageCircle, Repeat2, Trash2 } from "lucide-react";
-import { api, mediaUrl } from "@/lib/api";
+import { ApiError, api, mediaUrl } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import type { Post } from "@/lib/types";
 import { cn, timeAgo } from "@/lib/utils";
@@ -165,7 +165,19 @@ function AttachmentGrid({ files }: { files: { url: string }[] }) {
   );
 }
 
-export function PostCard({ post, onChange, onBookmark }: { post: Post; onChange?: () => void; onBookmark?: (bookmarked: boolean) => void }) {
+export function PostCard({
+  post,
+  onChange,
+  onBookmark,
+  onRemoved,
+  onRestored,
+}: {
+  post: Post;
+  onChange?: () => void;
+  onBookmark?: (bookmarked: boolean) => void;
+  onRemoved?: (id: string) => void;
+  onRestored?: (post: Post) => void;
+}) {
   const { user } = useAuth();
   const [liked, setLiked] = useState(post.liked);
   const [likeCount, setLikeCount] = useState(post.likeCount);
@@ -173,6 +185,7 @@ export function PostCard({ post, onChange, onBookmark }: { post: Post; onChange?
   const [repostCount, setRepostCount] = useState(post.repostCount);
   const [bookmarked, setBookmarked] = useState(post.bookmarked);
   const [hidden, setHidden] = useState(false);
+  const [removing, setRemoving] = useState(false);
   const author = post.author;
 
   if (hidden || !author) return null;
@@ -225,10 +238,20 @@ export function PostCard({ post, onChange, onBookmark }: { post: Post; onChange?
   }
 
   async function remove() {
-    if (!confirm("Remove this post?")) return;
-    await api(`/api/posts/${post.id}`, { method: "DELETE" });
+    if (removing || !confirm("Remove this post?")) return;
+    setRemoving(true);
+    // Optimistic — match Composer: UI updates immediately, then the server confirms.
     setHidden(true);
-    onChange?.();
+    onRemoved?.(post.id);
+    try {
+      await api(`/api/posts/${post.id}`, { method: "DELETE" });
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) return;
+      setHidden(false);
+      setRemoving(false);
+      onRestored?.(post);
+      window.alert(err instanceof Error ? err.message : "Could not remove this post");
+    }
   }
 
   return (

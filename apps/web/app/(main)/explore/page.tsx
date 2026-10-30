@@ -6,6 +6,7 @@ import { PostCard } from "@/components/post";
 import { PageHeader } from "@/components/shell";
 import { Avatar, inputClass, Spinner } from "@/components/ui";
 import { api } from "@/lib/api";
+import { applyRemoved, applyRestored } from "@/lib/posts-sync";
 import type { Post, PublicUser } from "@/lib/types";
 
 export default function ExplorePage() {
@@ -57,7 +58,12 @@ export default function ExplorePage() {
       </div>
       {loading && <Spinner />}
       {posts.map((post) => (
-        <PostCard key={post.id} post={post} />
+        <PostCard
+          key={post.id}
+          post={post}
+          onRemoved={(id) => setPosts((current) => applyRemoved(current, id))}
+          onRestored={(item) => setPosts((current) => applyRestored(current, item))}
+        />
       ))}
     </div>
   );
