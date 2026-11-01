@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { Info } from "lucide-react";
 import { AuthLayout } from "@/components/auth-layout";
+import { GoogleButton } from "@/components/google-button";
 import { Button, Field, inputClass } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -94,7 +95,11 @@ export default function RegisterPage() {
     <AuthLayout>
       <div>
         <h1 className="mt-6 text-3xl font-semibold">Create your account</h1>
-        <form className="mt-6 space-y-3" onSubmit={submit}>
+        <p className="mt-1 text-sm text-neutral-500">Skip the password — continue with Google, or register with email below.</p>
+        <div className="mt-6">
+          <GoogleButton label="Continue with Google" />
+        </div>
+        <form className="mt-4 space-y-3" onSubmit={submit}>
           <div className="space-y-1.5 text-sm">
             <div className="flex items-center gap-1.5 text-neutral-600">
               <label htmlFor="display-name">Display name</label>

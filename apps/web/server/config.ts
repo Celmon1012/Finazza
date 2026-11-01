@@ -22,6 +22,8 @@ function publicUrl(value: string | undefined, fallback: string) {
   return value;
 }
 
+const apiPublicUrl = publicUrl(process.env.API_PUBLIC_URL, hostedOrigin || `http://localhost:${process.env.PORT || 4000}`);
+
 export const config = {
   nodeEnv,
   port: Number(process.env.PORT || 4000),
@@ -31,13 +33,20 @@ export const config = {
   jwtSecret,
   clientOrigin: publicUrl(process.env.CLIENT_ORIGIN, hostedOrigin || "http://localhost:3000"),
   appUrl: publicUrl(process.env.APP_URL, hostedOrigin || "http://localhost:3000"),
-  apiPublicUrl: publicUrl(process.env.API_PUBLIC_URL, hostedOrigin || `http://localhost:${process.env.PORT || 4000}`),
+  apiPublicUrl,
+  googleClientId: process.env.GOOGLE_CLIENT_ID || "",
+  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+  googleRedirectUri: process.env.GOOGLE_REDIRECT_URI || `${apiPublicUrl}/api/auth/google/callback`,
   uploadDir: process.env.VERCEL ? path.join("/tmp", "finazza-uploads") : path.resolve(here, "../../api/uploads"),
   resendApiKey: process.env.RESEND_API_KEY || "",
   emailFrom: process.env.EMAIL_FROM || "FINAZZA <noreply@finazza.app>",
   isProd: nodeEnv === "production",
   siteAdminEmails: ["ibneyousaf86@gmail.com", "waikintse2@ln.hk"],
 };
+
+export function googleOAuthConfigured() {
+  return Boolean(config.googleClientId && config.googleClientSecret);
+}
 
 export const PROOF_LABEL = "Proof uploaded — not verified by the platform";
 export const GROUP_MEMBER_LIMIT = 50;

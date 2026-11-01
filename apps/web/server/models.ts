@@ -185,6 +185,7 @@ function mapUser(row: any) {
     email: row.email,
     username: row.username,
     passwordHash: row.password_hash,
+    googleSub: row.google_sub || null,
     displayName: row.display_name,
     bio: row.bio || "",
     avatarUrl: row.avatar_url,
@@ -228,8 +229,10 @@ function mapUser(row: any) {
       accepted_terms_at: iso(doc.acceptedTermsAt),
       reset_token_hash: doc.resetTokenHash || null,
       reset_token_expires: iso(doc.resetTokenExpires),
+      google_sub: doc.googleSub || null,
     };
-    if (typeof doc.passwordHash === "string" && doc.passwordHash.startsWith("$2")) patch.password_hash = doc.passwordHash;
+    if (doc.passwordHash == null) patch.password_hash = null;
+    else if (typeof doc.passwordHash === "string" && doc.passwordHash.startsWith("$2")) patch.password_hash = doc.passwordHash;
     const { error } = await table("profiles").update(patch).eq("id", doc._id);
     fail(error);
   };
@@ -247,6 +250,7 @@ async function loadUsers(filter: any, opts: QueryOpts) {
   if (typeof filter._id === "string" || (filter._id && filter._id._id)) query = query.eq("id", idOf(filter._id));
   if (filter._id?.$ne) query = query.neq("id", idOf(filter._id.$ne));
   if (typeof filter.email === "string") query = query.eq("email", filter.email.toLowerCase());
+  if (typeof filter.googleSub === "string") query = query.eq("google_sub", filter.googleSub);
   if (typeof filter.username === "string") query = query.eq("username", filter.username);
   if (filter.username?.$in) {
     if (!filter.username.$in.length) return [];
@@ -296,7 +300,8 @@ async function insertUser(input: any) {
   const row = {
     email: String(input.email).toLowerCase(),
     username: String(input.username).toLowerCase(),
-    password_hash: input.passwordHash,
+    password_hash: input.passwordHash ?? null,
+    google_sub: input.googleSub || null,
     display_name: input.displayName,
     bio: input.bio || "",
     avatar_url: input.avatarUrl || null,

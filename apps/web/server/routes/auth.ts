@@ -2,9 +2,17 @@ import { Router } from "express";
 import bcrypt from "bcryptjs";
 import rateLimit from "express-rate-limit";
 import { z } from "zod";
-import { config } from "../config.js";
+import { config, googleOAuthConfigured } from "../config.js";
 import { isSiteAdminEmail, requireAuth, signToken, syncSiteAdmin } from "../auth.js";
 import { sendPasswordReset } from "../email.js";
+import {
+  exchangeGoogleCode,
+  googleAuthUrl,
+  loadGoogleProfile,
+  signExchangeCode,
+  upsertGoogleUser,
+  verifyGoogleState,
+} from "../google-oauth.js";
 import { HttpError, wrap } from "../http.js";
 import { Conversation, ReadState, User } from "../models.js";
 import { meDto } from "../present.js";
@@ -70,10 +78,83 @@ router.post(
       .parse(req.body);
     const user = await User.findOne({ email: body.email.toLowerCase() }).select("+passwordHash");
     if (!user || user.suspended) throw new HttpError(401, "Email or password is incorrect");
+    if (!user.passwordHash) throw new HttpError(401, "This account uses Google sign-in. Continue with Google instead.");
     const match = await bcrypt.compare(body.password, user.passwordHash);
     if (!match) throw new HttpError(401, "Email or password is incorrect");
     await syncSiteAdmin(user);
     res.json({ token: signToken(String(user._id)), user: meDto(user) });
+  }),
+);
+
+function authFailRedirect(res: { redirect: (url: string) => void }, message: string, path = "/login") {
+  const target = new URL(path, config.appUrl);
+  target.searchParams.set("error", message);
+  res.redirect(target.toString());
+}
+
+function friendlyGoogleError(error: unknown) {
+  const raw = error instanceof Error ? error.message : "Google sign-in failed.";
+  if (/google_sub|password_hash|null value|schema cache|column/i.test(raw)) {
+    return "Database is not ready for Google sign-in. Run apps/api/supabase/google-auth-migration.sql in Supabase.";
+  }
+  if (/invalid_grant|redirect_uri_mismatch|invalid_client/i.test(raw)) {
+    return "Google OAuth settings are wrong. Check Client ID, secret, and redirect URIs.";
+  }
+  return raw.slice(0, 180);
+}
+
+router.get(
+  "/google",
+  limiter,
+  wrap(async (_req, res) => {
+    if (!googleOAuthConfigured()) {
+      authFailRedirect(res, "Google sign-in is not configured yet. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET on Vercel, then redeploy.");
+      return;
+    }
+    res.redirect(googleAuthUrl());
+  }),
+);
+
+router.get(
+  "/google/callback",
+  limiter,
+  wrap(async (req, res) => {
+    try {
+      if (!googleOAuthConfigured()) {
+        authFailRedirect(res, "Google sign-in is not configured yet.", "/auth/callback");
+        return;
+      }
+      if (typeof req.query.error === "string") {
+        authFailRedirect(
+          res,
+          req.query.error === "access_denied" ? "Google sign-in was cancelled." : "Google sign-in failed.",
+          "/auth/callback",
+        );
+        return;
+      }
+      verifyGoogleState(typeof req.query.state === "string" ? req.query.state : undefined);
+      const code = typeof req.query.code === "string" ? req.query.code : "";
+      if (!code) {
+        authFailRedirect(res, "Google sign-in was incomplete.", "/auth/callback");
+        return;
+      }
+      const profile = await loadGoogleProfile(code);
+      const user = await upsertGoogleUser(profile);
+      const target = new URL("/auth/callback", config.appUrl);
+      target.searchParams.set("code", signExchangeCode(String(user._id)));
+      res.redirect(target.toString());
+    } catch (error) {
+      authFailRedirect(res, friendlyGoogleError(error), "/auth/callback");
+    }
+  }),
+);
+
+router.post(
+  "/google/exchange",
+  limiter,
+  wrap(async (req, res) => {
+    const body = z.object({ code: z.string().min(20) }).parse(req.body);
+    res.json(await exchangeGoogleCode(body.code));
   }),
 );
 

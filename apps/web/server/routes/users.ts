@@ -108,6 +108,7 @@ router.post(
       .parse(req.body);
     const user = await User.findById(req.user!._id).select("+passwordHash");
     if (!user) throw new HttpError(401, "Sign in required");
+    if (!user.passwordHash) throw new HttpError(400, "This account signs in with Google and has no password yet.");
     const match = await bcrypt.compare(body.currentPassword, user.passwordHash);
     if (!match) throw new HttpError(400, "Current password is incorrect");
     user.passwordHash = await bcrypt.hash(body.newPassword, 12);

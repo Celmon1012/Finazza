@@ -1,20 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 import { AuthLayout } from "@/components/auth-layout";
+import { GoogleButton } from "@/components/google-button";
 import { Button, inputClass } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import type { Me } from "@/lib/types";
 
-export default function LoginPage() {
+function LoginForm() {
   const { setSession, user, ready } = useAuth();
   const router = useRouter();
+  const search = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState(search?.get("error") || "");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -42,8 +44,11 @@ export default function LoginPage() {
   return (
     <AuthLayout>
       <h1 className="mt-6 text-3xl font-semibold">Sign in</h1>
-      <p className="mt-1 text-sm text-neutral-500">Welcome back to FINAZZA.</p>
-      <form className="mt-6 space-y-3" onSubmit={submit}>
+      <p className="mt-1 text-sm text-neutral-500">Welcome back to FINAZZA. Use Google if you do not want to remember another password.</p>
+      <div className="mt-6">
+        <GoogleButton />
+      </div>
+      <form className="mt-4 space-y-3" onSubmit={submit}>
         <input className={inputClass} type="email" autoComplete="email" placeholder="Email" aria-label="Email" value={email} onChange={(event) => setEmail(event.target.value)} required />
         <input className={inputClass} type="password" autoComplete="current-password" placeholder="Password" aria-label="Password" value={password} onChange={(event) => setPassword(event.target.value)} required />
         {error && <p className="text-sm text-[#ff5d73]">{error}</p>}
@@ -58,5 +63,19 @@ export default function LoginPage() {
         New here? <Link href="/register" className="text-[#c56a00]">Create an account</Link>
       </p>
     </AuthLayout>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <AuthLayout>
+          <h1 className="mt-6 text-3xl font-semibold">Sign in</h1>
+        </AuthLayout>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }
