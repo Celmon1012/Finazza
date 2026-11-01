@@ -1,6 +1,7 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import rateLimit from "express-rate-limit";
+import jwt from "jsonwebtoken";
 import { z } from "zod";
 import { config, googleOAuthConfigured, staffLoginConfigured } from "../config.js";
 import { isSiteAdminEmail, requireAuth, signToken, syncSiteAdmin } from "../auth.js";
@@ -174,17 +175,45 @@ const staffLimiter = rateLimit({
   message: { error: "Too many staff login attempts. Try again later." },
 });
 
-function assertStaffKey(key: unknown) {
-  if (!staffLoginConfigured()) throw new HttpError(503, "Staff login is not enabled. Set STAFF_LOGIN_SECRET on the server.");
-  if (typeof key !== "string" || key !== config.staffLoginSecret) {
-    throw new HttpError(403, "Wrong staff key.");
+async function staffUserFromAuthHeader(req: { headers: { authorization?: string } }) {
+  const header = req.headers.authorization;
+  if (!header?.startsWith("Bearer ")) return null;
+  try {
+    const payload = jwt.verify(header.slice(7), config.jwtSecret) as { sub: string };
+    const user = await User.findById(payload.sub);
+    if (!user || user.suspended) return null;
+    await syncSiteAdmin(user);
+    return user;
+  } catch {
+    return null;
   }
+}
+
+/** Site owners (ibneyousaf86@gmail.com / waikintse2@ln.hk) or STAFF_LOGIN_SECRET. */
+async function assertStaffAccess(req: { headers: { authorization?: string } }, key?: unknown) {
+  const user = await staffUserFromAuthHeader(req);
+  if (user && isSiteAdminEmail(String(user.email || ""))) return { via: "admin" as const, user };
+  if (staffLoginConfigured() && typeof key === "string" && key === config.staffLoginSecret) {
+    return { via: "secret" as const, user: null };
+  }
+  if (user) {
+    throw new HttpError(403, "Staff login is only for site owners. Sign in as ibneyousaf86@gmail.com or waikintse2@ln.hk.");
+  }
+  if (staffLoginConfigured()) throw new HttpError(403, "Wrong staff key. Or sign in with a staff email first.");
+  throw new HttpError(403, "Sign in with ibneyousaf86@gmail.com or waikintse2@ln.hk, then open /login2.");
 }
 
 router.get(
   "/staff/status",
-  wrap(async (_req, res) => {
-    res.json({ enabled: staffLoginConfigured() });
+  wrap(async (req, res) => {
+    const user = await staffUserFromAuthHeader(req);
+    const asAdmin = Boolean(user && isSiteAdminEmail(String(user.email || "")));
+    res.json({
+      enabled: asAdmin || staffLoginConfigured(),
+      asAdmin,
+      secretEnabled: staffLoginConfigured(),
+      staffEmails: config.siteAdminEmails,
+    });
   }),
 );
 
@@ -192,7 +221,7 @@ router.get(
   "/staff/accounts",
   staffLimiter,
   wrap(async (req, res) => {
-    assertStaffKey(req.query.key);
+    await assertStaffAccess(req, req.query.key);
     res.json({
       accounts: STAFF_DEMO_ACCOUNTS.map(({ username, displayName, blurb }) => ({ username, displayName, blurb })),
     });
@@ -205,11 +234,11 @@ router.post(
   wrap(async (req, res) => {
     const body = z
       .object({
-        key: z.string().min(1),
+        key: z.string().optional(),
         username: z.string().trim().toLowerCase(),
       })
       .parse(req.body);
-    assertStaffKey(body.key);
+    await assertStaffAccess(req, body.key);
     const demo = STAFF_DEMO_ACCOUNTS.find((account) => account.username === body.username);
     if (!demo) throw new HttpError(404, "That demo account is not on the staff list.");
 

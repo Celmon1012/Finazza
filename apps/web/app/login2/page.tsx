@@ -17,49 +17,61 @@ type StaffAccount = {
   blurb: string;
 };
 
+type StaffStatus = {
+  enabled: boolean;
+  asAdmin: boolean;
+  secretEnabled: boolean;
+  staffEmails: string[];
+};
+
 function StaffLoginInner() {
-  const { setSession, user, ready } = useAuth();
+  const { setSession, user, ready, logout } = useAuth();
   const router = useRouter();
   const search = useSearchParams();
   const [key, setKey] = useState("");
   const [unlocked, setUnlocked] = useState(false);
   const [accounts, setAccounts] = useState<StaffAccount[]>([]);
-  const [enabled, setEnabled] = useState<boolean | null>(null);
+  const [status, setStatus] = useState<StaffStatus | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (ready && user) router.replace("/home");
-  }, [ready, user, router]);
+  async function loadAccounts(staffKey?: string) {
+    const query = staffKey ? `?key=${encodeURIComponent(staffKey)}` : "";
+    const data = await api<{ accounts: StaffAccount[] }>(`/api/auth/staff/accounts${query}`);
+    setAccounts(data.accounts);
+    setUnlocked(true);
+    if (staffKey) {
+      sessionStorage.setItem(KEY_STORAGE, staffKey);
+      setKey(staffKey);
+    }
+  }
 
   useEffect(() => {
-    api<{ enabled: boolean }>("/api/auth/staff/status")
-      .then((data) => setEnabled(data.enabled))
-      .catch(() => setEnabled(false));
-  }, []);
-
-  useEffect(() => {
-    const fromQuery = search?.get("key") || "";
-    const stored = typeof window !== "undefined" ? sessionStorage.getItem(KEY_STORAGE) || "" : "";
-    const initial = fromQuery || stored;
-    if (!initial) return;
-    setKey(initial);
+    if (!ready) return;
     let cancelled = false;
     (async () => {
       try {
-        const data = await api<{ accounts: StaffAccount[] }>(`/api/auth/staff/accounts?key=${encodeURIComponent(initial)}`);
+        const next = await api<StaffStatus>("/api/auth/staff/status");
         if (cancelled) return;
-        sessionStorage.setItem(KEY_STORAGE, initial);
-        setAccounts(data.accounts);
-        setUnlocked(true);
+        setStatus(next);
+        if (next.asAdmin) {
+          await loadAccounts();
+          return;
+        }
+        const fromQuery = search?.get("key") || "";
+        const stored = sessionStorage.getItem(KEY_STORAGE) || "";
+        const initial = fromQuery || stored;
+        if (!initial) return;
+        setKey(initial);
+        await loadAccounts(initial);
       } catch {
-        if (!cancelled) sessionStorage.removeItem(KEY_STORAGE);
+        if (!cancelled) setStatus({ enabled: false, asAdmin: false, secretEnabled: false, staffEmails: [] });
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [search]);
+  }, [ready, search, user?.id]);
 
   async function unlock(nextKey = key) {
     const trimmed = nextKey.trim();
@@ -70,11 +82,7 @@ function StaffLoginInner() {
     setBusy("unlock");
     setError("");
     try {
-      const data = await api<{ accounts: StaffAccount[] }>(`/api/auth/staff/accounts?key=${encodeURIComponent(trimmed)}`);
-      sessionStorage.setItem(KEY_STORAGE, trimmed);
-      setKey(trimmed);
-      setAccounts(data.accounts);
-      setUnlocked(true);
+      await loadAccounts(trimmed);
     } catch (err) {
       sessionStorage.removeItem(KEY_STORAGE);
       setUnlocked(false);
@@ -91,7 +99,7 @@ function StaffLoginInner() {
     try {
       const result = await api<{ token: string; user: Me }>("/api/auth/staff/login", {
         method: "POST",
-        body: JSON.stringify({ key: key.trim(), username }),
+        body: JSON.stringify({ key: key.trim() || undefined, username }),
       });
       setSession(result.token, result.user);
       router.replace("/home");
@@ -101,21 +109,51 @@ function StaffLoginInner() {
     }
   }
 
+  const staffEmails = status?.staffEmails?.length ? status.staffEmails : ["ibneyousaf86@gmail.com", "waikintse2@ln.hk"];
+
   return (
     <AuthLayout>
       <h1 className="mt-6 text-3xl font-semibold">Staff login</h1>
       <p className="mt-1 text-sm text-neutral-500">
-        One-tap demo accounts for filling the feed. Not linked from the public site.
+        Switch into demo accounts to post as different people. For site owners only.
       </p>
 
-      {enabled === false && (
-        <p className="mt-4 rounded-2xl bg-[#fff0f2] px-3 py-2 text-sm text-[#d6334d]">
-          Staff login is off. Set <code className="text-xs">STAFF_LOGIN_SECRET</code> on the server (Vercel /{" "}
-          <code className="text-xs">apps/api/.env</code>), then redeploy.
+      {!ready && <Spinner />}
+
+      {ready && status && !status.enabled && !unlocked && (
+        <div className="mt-4 space-y-3 rounded-2xl bg-[#fff8ee] px-3 py-3 text-sm text-neutral-700">
+          <p>
+            Sign in first with a staff email, then open this page again:
+          </p>
+          <ul className="list-inside list-disc text-[#c56a00]">
+            {staffEmails.map((email) => (
+              <li key={email}>{email}</li>
+            ))}
+          </ul>
+          <Link href="/login" className="inline-flex text-[#c56a00]">
+            Go to sign in →
+          </Link>
+        </div>
+      )}
+
+      {ready && status?.asAdmin && unlocked && (
+        <p className="mt-3 text-sm text-[#1f9d55]">
+          Signed in as staff ({user?.email}). Tap a demo account below.
         </p>
       )}
 
-      {enabled !== false && !unlocked && (
+      {ready && user && !status?.asAdmin && !unlocked && (
+        <div className="mt-4 space-y-2 rounded-2xl bg-[#fff0f2] px-3 py-3 text-sm text-[#d6334d]">
+          <p>
+            You are signed in as {user.email}, which is not a staff owner email.
+          </p>
+          <button type="button" className="text-[#c56a00]" onClick={() => logout()}>
+            Log out and use a staff email
+          </button>
+        </div>
+      )}
+
+      {ready && !unlocked && (status?.secretEnabled || status?.enabled === false) && !status?.asAdmin && (
         <form
           className="mt-6 space-y-3"
           onSubmit={(event) => {
@@ -123,6 +161,7 @@ function StaffLoginInner() {
             unlock();
           }}
         >
+          <p className="text-xs text-neutral-500">Or unlock with the shared staff key (if configured).</p>
           <input
             className={inputClass}
             type="password"
@@ -133,9 +172,12 @@ function StaffLoginInner() {
             onChange={(event) => setKey(event.target.value)}
           />
           {error && <p className="text-sm text-[#ff5d73]">{error}</p>}
-          <Button type="submit" className="w-full" disabled={busy === "unlock" || enabled === null}>
-            {busy === "unlock" ? "Checking…" : "Unlock"}
+          <Button type="submit" className="w-full" disabled={busy === "unlock" || !status?.secretEnabled}>
+            {busy === "unlock" ? "Checking…" : "Unlock with key"}
           </Button>
+          {!status?.secretEnabled && (
+            <p className="text-xs text-neutral-500">No staff key is set on the server. Use a staff email instead.</p>
+          )}
         </form>
       )}
 
@@ -172,7 +214,7 @@ function StaffLoginInner() {
               setError("");
             }}
           >
-            Lock again
+            Hide accounts
           </button>
         </div>
       )}

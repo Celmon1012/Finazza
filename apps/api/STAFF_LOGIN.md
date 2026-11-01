@@ -1,26 +1,40 @@
 # Staff one-tap login (`/login2`)
 
-Hidden page for your team to jump between seeded demo accounts and post as different people.
+Hidden page so site owners can jump into seeded demo accounts and post as different people.
 
-## Enable
+## Who can use it
 
-1. Pick a long random secret (not a password users know).
-2. **Vercel → Environment Variables** (Production + Preview):
+**Staff emails (preferred):**
 
-   - `STAFF_LOGIN_SECRET` = your secret  
-   - Optional: `DEMO_PASSWORD` = `password123` (default; must match seeded hashes)
+- `ibneyousaf86@gmail.com`
+- `waikintse2@ln.hk`
 
-3. Redeploy.
-4. Locally, add the same to `apps/api/.env` and restart the API.
+These are the same site-owner emails that get the Admin role.
 
-## Use
+**Optional shared key:** `STAFF_LOGIN_SECRET` on the server (if set).
 
-1. Open `https://finazza.vercel.app/login2`
-2. Enter the staff key (or use `https://finazza.vercel.app/login2?key=YOUR_SECRET` once)
-3. Tap **Alex**, **Jordan**, **Sam**, or **Admin** → signed in as that account
-4. Post, then Lock again / log out and pick another
+## How to use (staff email)
 
-Accounts (seed password `password123`):
+1. Sign in at `/login` (Google or password) as `ibneyousaf86@gmail.com` or `waikintse2@ln.hk`
+2. Open https://finazza.vercel.app/login2
+3. Tap **Alex**, **Jordan**, **Sam**, or **Admin**
+4. You are signed in as that demo account — post, then return to `/login2` while still a… wait — after switching you are no longer the staff email.
+
+After you enter a demo account, to switch again either:
+
+- Log out → sign in again as a staff email → `/login2`, or
+- Use the staff key unlock if `STAFF_LOGIN_SECRET` is set
+
+## Optional staff key
+
+Vercel env (Production + Preview):
+
+- `STAFF_LOGIN_SECRET` = long random string  
+- `DEMO_PASSWORD` = `password123` (default; must match seed)
+
+Then `/login2` can unlock with that key without signing in as staff first.
+
+## Demo accounts
 
 | Tap | Username | Email |
 | --- | --- | --- |
@@ -29,4 +43,4 @@ Accounts (seed password `password123`):
 | Sam Rivera | sam | sam@finazza.dev |
 | FINAZZA Admin | admin | admin@finazza.dev |
 
-Public `/login` is unchanged. Do not link `/login2` from the public nav.
+Do not link `/login2` from the public nav.
