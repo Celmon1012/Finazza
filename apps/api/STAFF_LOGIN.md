@@ -1,46 +1,36 @@
 # Staff one-tap login (`/login2`)
 
-Hidden page so site owners can jump into seeded demo accounts and post as different people.
+Switch between **site owner** accounts and **demo personas** without typing passwords.
 
-## Who can use it
+## Who can open it
 
-**Staff emails (preferred):**
+Sign in at `/login` as:
 
 - `ibneyousaf86@gmail.com`
 - `waikintse2@ln.hk`
 
-These are the same site-owner emails that get the Admin role.
+Then open https://finazza.vercel.app/login2
 
-**Optional shared key:** `STAFF_LOGIN_SECRET` on the server (if set).
+Optional: set `STAFF_LOGIN_SECRET` on Vercel to unlock with a shared key instead.
 
-## How to use (staff email)
+## What you can tap
 
-1. Sign in at `/login` (Google or password) as `ibneyousaf86@gmail.com` or `waikintse2@ln.hk`
-2. Open https://finazza.vercel.app/login2
-3. Tap **Alex**, **Jordan**, **Sam**, or **Admin**
-4. You are signed in as that demo account — post, then return to `/login2` while still a… wait — after switching you are no longer the staff email.
+**Site owners**
 
-After you enter a demo account, to switch again either:
+- `ibneyousaf86@gmail.com`
+- `waikintse2@ln.hk`
 
-- Log out → sign in again as a staff email → `/login2`, or
-- Use the staff key unlock if `STAFF_LOGIN_SECRET` is set
+(Each address must already have a FINAZZA profile — sign in once with Google/email if you see “not registered yet”.)
 
-## Optional staff key
+**Demo personas** (for filling the feed)
 
-Vercel env (Production + Preview):
+- Alex / Jordan / Sam / Admin (`*@finazza.dev`)
 
-- `STAFF_LOGIN_SECRET` = long random string  
-- `DEMO_PASSWORD` = `password123` (default; must match seed)
+## Flow
 
-Then `/login2` can unlock with that key without signing in as staff first.
-
-## Demo accounts
-
-| Tap | Username | Email |
-| --- | --- | --- |
-| Alex Morgan | alex | alex@finazza.dev |
-| Jordan Lee | jordan | jordan@finazza.dev |
-| Sam Rivera | sam | sam@finazza.dev |
-| FINAZZA Admin | admin | admin@finazza.dev |
+1. Sign in as a site owner  
+2. Open `/login2`  
+3. Tap the account you want  
+4. You land on Home as that user  
 
 Do not link `/login2` from the public nav.

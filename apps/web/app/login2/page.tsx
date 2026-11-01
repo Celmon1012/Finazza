@@ -12,9 +12,13 @@ import type { Me } from "@/lib/types";
 const KEY_STORAGE = "finazza_staff_key";
 
 type StaffAccount = {
+  id: string;
+  email: string;
   username: string;
   displayName: string;
   blurb: string;
+  kind: "staff" | "demo";
+  ready: boolean;
 };
 
 type StaffStatus = {
@@ -93,13 +97,21 @@ function StaffLoginInner() {
     }
   }
 
-  async function enterAs(username: string) {
-    setBusy(username);
+  async function enterAs(account: StaffAccount) {
+    if (!account.ready) {
+      setError(
+        account.kind === "staff"
+          ? `${account.email} has no FINAZZA profile yet. Sign in once with Google/email using that address, then return here.`
+          : "That demo account is not in the database.",
+      );
+      return;
+    }
+    setBusy(account.id);
     setError("");
     try {
       const result = await api<{ token: string; user: Me }>("/api/auth/staff/login", {
         method: "POST",
-        body: JSON.stringify({ key: key.trim() || undefined, username }),
+        body: JSON.stringify({ key: key.trim() || undefined, id: account.id }),
       });
       setSession(result.token, result.user);
       router.replace("/home");
@@ -109,22 +121,53 @@ function StaffLoginInner() {
     }
   }
 
+  const staffAccounts = accounts.filter((account) => account.kind === "staff");
+  const demoAccounts = accounts.filter((account) => account.kind === "demo");
   const staffEmails = status?.staffEmails?.length ? status.staffEmails : ["ibneyousaf86@gmail.com", "waikintse2@ln.hk"];
+
+  function AccountList({ title, items }: { title: string; items: StaffAccount[] }) {
+    if (!items.length) return null;
+    return (
+      <div className="space-y-2">
+        <p className="text-xs uppercase tracking-[0.14em] text-neutral-400">{title}</p>
+        {items.map((account) => (
+          <button
+            key={account.id}
+            type="button"
+            disabled={Boolean(busy)}
+            onClick={() => enterAs(account)}
+            className="flex w-full items-center gap-3 rounded-2xl border border-[#f0e6d8] bg-white/90 px-3 py-3 text-left transition hover:bg-[#fff8ee] disabled:opacity-50"
+          >
+            <Avatar name={account.displayName} size={44} />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate font-semibold">{account.displayName}</span>
+              <span className="block truncate text-sm text-neutral-500">
+                {account.kind === "staff" ? account.email : `@${account.username}`}
+                {account.ready ? "" : " · not registered yet"}
+              </span>
+              <span className="block truncate text-xs text-neutral-400">{account.blurb}</span>
+            </span>
+            <span className="shrink-0 text-sm text-[#c56a00]">
+              {busy === account.id ? "…" : account.ready ? "Enter" : "Missing"}
+            </span>
+          </button>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <AuthLayout>
       <h1 className="mt-6 text-3xl font-semibold">Staff login</h1>
       <p className="mt-1 text-sm text-neutral-500">
-        Switch into demo accounts to post as different people. For site owners only.
+        Tap a site owner or a demo persona. For staff only.
       </p>
 
       {!ready && <Spinner />}
 
       {ready && status && !status.enabled && !unlocked && (
         <div className="mt-4 space-y-3 rounded-2xl bg-[#fff8ee] px-3 py-3 text-sm text-neutral-700">
-          <p>
-            Sign in first with a staff email, then open this page again:
-          </p>
+          <p>Sign in first with a staff email, then open this page again:</p>
           <ul className="list-inside list-disc text-[#c56a00]">
             {staffEmails.map((email) => (
               <li key={email}>{email}</li>
@@ -137,23 +180,19 @@ function StaffLoginInner() {
       )}
 
       {ready && status?.asAdmin && unlocked && (
-        <p className="mt-3 text-sm text-[#1f9d55]">
-          Signed in as staff ({user?.email}). Tap a demo account below.
-        </p>
+        <p className="mt-3 text-sm text-[#1f9d55]">Signed in as staff ({user?.email}). Choose who to enter as.</p>
       )}
 
       {ready && user && !status?.asAdmin && !unlocked && (
         <div className="mt-4 space-y-2 rounded-2xl bg-[#fff0f2] px-3 py-3 text-sm text-[#d6334d]">
-          <p>
-            You are signed in as {user.email}, which is not a staff owner email.
-          </p>
+          <p>You are signed in as {user.email}, which is not a staff owner email.</p>
           <button type="button" className="text-[#c56a00]" onClick={() => logout()}>
             Log out and use a staff email
           </button>
         </div>
       )}
 
-      {ready && !unlocked && (status?.secretEnabled || status?.enabled === false) && !status?.asAdmin && (
+      {ready && !unlocked && status?.secretEnabled && !status?.asAdmin && (
         <form
           className="mt-6 space-y-3"
           onSubmit={(event) => {
@@ -161,7 +200,7 @@ function StaffLoginInner() {
             unlock();
           }}
         >
-          <p className="text-xs text-neutral-500">Or unlock with the shared staff key (if configured).</p>
+          <p className="text-xs text-neutral-500">Or unlock with the shared staff key.</p>
           <input
             className={inputClass}
             type="password"
@@ -172,40 +211,20 @@ function StaffLoginInner() {
             onChange={(event) => setKey(event.target.value)}
           />
           {error && <p className="text-sm text-[#ff5d73]">{error}</p>}
-          <Button type="submit" className="w-full" disabled={busy === "unlock" || !status?.secretEnabled}>
+          <Button type="submit" className="w-full" disabled={busy === "unlock"}>
             {busy === "unlock" ? "Checking…" : "Unlock with key"}
           </Button>
-          {!status?.secretEnabled && (
-            <p className="text-xs text-neutral-500">No staff key is set on the server. Use a staff email instead.</p>
-          )}
         </form>
       )}
 
       {unlocked && (
-        <div className="mt-6 space-y-2">
-          <p className="text-xs uppercase tracking-[0.14em] text-neutral-400">Tap an account</p>
-          {accounts.map((account) => (
-            <button
-              key={account.username}
-              type="button"
-              disabled={Boolean(busy)}
-              onClick={() => enterAs(account.username)}
-              className="flex w-full items-center gap-3 rounded-2xl border border-[#f0e6d8] bg-white/90 px-3 py-3 text-left transition hover:bg-[#fff8ee] disabled:opacity-50"
-            >
-              <Avatar name={account.displayName} size={44} />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate font-semibold">{account.displayName}</span>
-                <span className="block truncate text-sm text-neutral-500">
-                  @{account.username} · {account.blurb}
-                </span>
-              </span>
-              <span className="shrink-0 text-sm text-[#c56a00]">{busy === account.username ? "…" : "Enter"}</span>
-            </button>
-          ))}
+        <div className="mt-6 space-y-5">
+          <AccountList title="Site owners" items={staffAccounts} />
+          <AccountList title="Demo personas (for the feed)" items={demoAccounts} />
           {error && <p className="text-sm text-[#ff5d73]">{error}</p>}
           <button
             type="button"
-            className="mt-2 text-sm text-neutral-500 hover:text-[#c56a00]"
+            className="text-sm text-neutral-500 hover:text-[#c56a00]"
             onClick={() => {
               sessionStorage.removeItem(KEY_STORAGE);
               setUnlocked(false);
@@ -220,7 +239,10 @@ function StaffLoginInner() {
       )}
 
       <p className="mt-6 text-sm text-neutral-500">
-        Public sign-in: <Link href="/login" className="text-[#c56a00]">/login</Link>
+        Public sign-in:{" "}
+        <Link href="/login" className="text-[#c56a00]">
+          /login
+        </Link>
       </p>
     </AuthLayout>
   );

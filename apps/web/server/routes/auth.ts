@@ -159,13 +159,15 @@ router.post(
   }),
 );
 
-/** Seeded demo personas only — staff one-tap login on /login2. */
-const STAFF_DEMO_ACCOUNTS = [
-  { username: "alex", email: "alex@finazza.dev", displayName: "Alex Morgan", blurb: "Portfolio & markets" },
-  { username: "jordan", email: "jordan@finazza.dev", displayName: "Jordan Lee", blurb: "Charts & chat" },
-  { username: "sam", email: "sam@finazza.dev", displayName: "Sam Rivera", blurb: "Collectibles" },
-  { username: "admin", email: "admin@finazza.dev", displayName: "FINAZZA Admin", blurb: "Moderation" },
-] as const;
+/** One-tap targets on /login2: site owners first, then seeded demo personas for the feed. */
+const STAFF_SWITCH_ACCOUNTS = [
+  { id: "ibneyousaf86@gmail.com", email: "ibneyousaf86@gmail.com", username: null as string | null, displayName: "Site owner", blurb: "ibneyousaf86@gmail.com", kind: "staff" as const },
+  { id: "waikintse2@ln.hk", email: "waikintse2@ln.hk", username: null as string | null, displayName: "Site owner", blurb: "waikintse2@ln.hk", kind: "staff" as const },
+  { id: "alex", email: "alex@finazza.dev", username: "alex", displayName: "Alex Morgan", blurb: "Demo · portfolio & markets", kind: "demo" as const },
+  { id: "jordan", email: "jordan@finazza.dev", username: "jordan", displayName: "Jordan Lee", blurb: "Demo · charts & chat", kind: "demo" as const },
+  { id: "sam", email: "sam@finazza.dev", username: "sam", displayName: "Sam Rivera", blurb: "Demo · collectibles", kind: "demo" as const },
+  { id: "admin", email: "admin@finazza.dev", username: "admin", displayName: "FINAZZA Admin", blurb: "Demo · moderation", kind: "demo" as const },
+];
 
 const staffLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -222,9 +224,20 @@ router.get(
   staffLimiter,
   wrap(async (req, res) => {
     await assertStaffAccess(req, req.query.key);
-    res.json({
-      accounts: STAFF_DEMO_ACCOUNTS.map(({ username, displayName, blurb }) => ({ username, displayName, blurb })),
-    });
+    const accounts = [];
+    for (const entry of STAFF_SWITCH_ACCOUNTS) {
+      const row = await User.findOne({ email: entry.email });
+      accounts.push({
+        id: entry.id,
+        email: entry.email,
+        username: row?.username || entry.username || entry.email.split("@")[0],
+        displayName: row?.displayName || entry.displayName,
+        blurb: entry.blurb,
+        kind: entry.kind,
+        ready: Boolean(row && !row.suspended),
+      });
+    }
+    res.json({ accounts });
   }),
 );
 
@@ -235,18 +248,23 @@ router.post(
     const body = z
       .object({
         key: z.string().optional(),
-        username: z.string().trim().toLowerCase(),
+        id: z.string().trim().min(1),
       })
       .parse(req.body);
     await assertStaffAccess(req, body.key);
-    const demo = STAFF_DEMO_ACCOUNTS.find((account) => account.username === body.username);
-    if (!demo) throw new HttpError(404, "That demo account is not on the staff list.");
+    const target = STAFF_SWITCH_ACCOUNTS.find((account) => account.id === body.id || account.email === body.id.toLowerCase());
+    if (!target) throw new HttpError(404, "That account is not on the staff switch list.");
 
-    const user = await User.findOne({ email: demo.email }).select("+passwordHash");
-    if (!user || user.suspended) throw new HttpError(401, "Demo account is missing or suspended. Re-run the seed SQL.");
-    if (!user.passwordHash) throw new HttpError(401, "Demo account has no password hash.");
-    const match = await bcrypt.compare(config.demoPassword, user.passwordHash);
-    if (!match) throw new HttpError(401, "Demo password does not match. Check DEMO_PASSWORD or re-seed accounts.");
+    // Impersonation is allowed only after staff access was verified (owner session or secret).
+    const user = await User.findOne({ email: target.email });
+    if (!user || user.suspended) {
+      throw new HttpError(
+        401,
+        target.kind === "staff"
+          ? `No FINAZZA account for ${target.email} yet. Sign up / Google login with that email once, then try again.`
+          : "Demo account is missing or suspended. Re-run the seed SQL.",
+      );
+    }
     await syncSiteAdmin(user);
     res.json({ token: signToken(String(user._id)), user: meDto(user) });
   }),
