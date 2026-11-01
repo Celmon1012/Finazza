@@ -2,7 +2,7 @@ import { Router } from "express";
 import bcrypt from "bcryptjs";
 import rateLimit from "express-rate-limit";
 import { z } from "zod";
-import { config, googleOAuthConfigured } from "../config.js";
+import { config, googleOAuthConfigured, staffLoginConfigured } from "../config.js";
 import { isSiteAdminEmail, requireAuth, signToken, syncSiteAdmin } from "../auth.js";
 import { sendPasswordReset } from "../email.js";
 import {
@@ -155,6 +155,71 @@ router.post(
   wrap(async (req, res) => {
     const body = z.object({ code: z.string().min(20) }).parse(req.body);
     res.json(await exchangeGoogleCode(body.code));
+  }),
+);
+
+/** Seeded demo personas only — staff one-tap login on /login2. */
+const STAFF_DEMO_ACCOUNTS = [
+  { username: "alex", email: "alex@finazza.dev", displayName: "Alex Morgan", blurb: "Portfolio & markets" },
+  { username: "jordan", email: "jordan@finazza.dev", displayName: "Jordan Lee", blurb: "Charts & chat" },
+  { username: "sam", email: "sam@finazza.dev", displayName: "Sam Rivera", blurb: "Collectibles" },
+  { username: "admin", email: "admin@finazza.dev", displayName: "FINAZZA Admin", blurb: "Moderation" },
+] as const;
+
+const staffLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many staff login attempts. Try again later." },
+});
+
+function assertStaffKey(key: unknown) {
+  if (!staffLoginConfigured()) throw new HttpError(503, "Staff login is not enabled. Set STAFF_LOGIN_SECRET on the server.");
+  if (typeof key !== "string" || key !== config.staffLoginSecret) {
+    throw new HttpError(403, "Wrong staff key.");
+  }
+}
+
+router.get(
+  "/staff/status",
+  wrap(async (_req, res) => {
+    res.json({ enabled: staffLoginConfigured() });
+  }),
+);
+
+router.get(
+  "/staff/accounts",
+  staffLimiter,
+  wrap(async (req, res) => {
+    assertStaffKey(req.query.key);
+    res.json({
+      accounts: STAFF_DEMO_ACCOUNTS.map(({ username, displayName, blurb }) => ({ username, displayName, blurb })),
+    });
+  }),
+);
+
+router.post(
+  "/staff/login",
+  staffLimiter,
+  wrap(async (req, res) => {
+    const body = z
+      .object({
+        key: z.string().min(1),
+        username: z.string().trim().toLowerCase(),
+      })
+      .parse(req.body);
+    assertStaffKey(body.key);
+    const demo = STAFF_DEMO_ACCOUNTS.find((account) => account.username === body.username);
+    if (!demo) throw new HttpError(404, "That demo account is not on the staff list.");
+
+    const user = await User.findOne({ email: demo.email }).select("+passwordHash");
+    if (!user || user.suspended) throw new HttpError(401, "Demo account is missing or suspended. Re-run the seed SQL.");
+    if (!user.passwordHash) throw new HttpError(401, "Demo account has no password hash.");
+    const match = await bcrypt.compare(config.demoPassword, user.passwordHash);
+    if (!match) throw new HttpError(401, "Demo password does not match. Check DEMO_PASSWORD or re-seed accounts.");
+    await syncSiteAdmin(user);
+    res.json({ token: signToken(String(user._id)), user: meDto(user) });
   }),
 );
 

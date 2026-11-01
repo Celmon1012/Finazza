@@ -42,7 +42,15 @@ export const config = {
   emailFrom: process.env.EMAIL_FROM || "FINAZZA <noreply@finazza.app>",
   isProd: nodeEnv === "production",
   siteAdminEmails: ["ibneyousaf86@gmail.com", "waikintse2@ln.hk"],
+  /** Shared secret for /login2 staff one-tap demo login. Empty = feature off. */
+  staffLoginSecret: (process.env.STAFF_LOGIN_SECRET || "").trim(),
+  /** Password for seeded demo personas (alex/jordan/sam/admin). Server-only. */
+  demoPassword: process.env.DEMO_PASSWORD || "password123",
 };
+
+export function staffLoginConfigured() {
+  return Boolean(config.staffLoginSecret);
+}
 
 export function googleOAuthConfigured() {
   return Boolean(config.googleClientId && config.googleClientSecret);
