@@ -9,7 +9,7 @@ import { ReportButton } from "@/components/report-button";
 import { Avatar, AvatarPicker, Button, Spinner } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { applyRemoved, applyRestored } from "@/lib/posts-sync";
+import { applyRemoved, applyRestored, onlyFeedPosts } from "@/lib/posts-sync";
 import type { Conversation, Investment, Post, Profile } from "@/lib/types";
 
 export default function ProfilePage() {
@@ -40,7 +40,7 @@ function ProfileScreen() {
       api<{ posts: Post[] }>(`/api/users/${username}/posts`),
       api<{ investments: Investment[] }>(`/api/investments/user/${username}`),
     ]);
-    setPosts(postData.posts);
+    setPosts(onlyFeedPosts(postData.posts));
     setInvestments(investmentData.investments);
   }
 

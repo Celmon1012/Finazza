@@ -6,7 +6,7 @@ import { PostCard } from "@/components/post";
 import { PageHeader } from "@/components/shell";
 import { Avatar, inputClass, Spinner } from "@/components/ui";
 import { api } from "@/lib/api";
-import { applyRemoved, applyRestored } from "@/lib/posts-sync";
+import { applyRemoved, applyRestored, onlyFeedPosts } from "@/lib/posts-sync";
 import type { Post, PublicUser } from "@/lib/types";
 
 export default function ExplorePage() {
@@ -17,7 +17,7 @@ export default function ExplorePage() {
 
   useEffect(() => {
     api<{ posts: Post[] }>("/api/posts/feed?tab=explore")
-      .then((data) => setPosts(data.posts))
+      .then((data) => setPosts(onlyFeedPosts(data.posts)))
       .finally(() => setLoading(false));
   }, []);
 
@@ -29,7 +29,7 @@ export default function ExplorePage() {
     const timer = setTimeout(() => {
       api<{ users: PublicUser[]; posts: Post[] }>(`/api/search?q=${encodeURIComponent(query.trim())}`).then((data) => {
         setUsers(data.users);
-        setPosts(data.posts);
+        setPosts(onlyFeedPosts(data.posts));
       });
     }, 250);
     return () => clearTimeout(timer);

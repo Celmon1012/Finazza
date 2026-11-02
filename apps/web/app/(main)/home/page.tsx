@@ -5,7 +5,7 @@ import { Composer, PostCard } from "@/components/post";
 import { PageHeader } from "@/components/shell";
 import { Button, Empty, Spinner } from "@/components/ui";
 import { api } from "@/lib/api";
-import { applyPosted, applyRemoved, applyRestored, isPendingPost } from "@/lib/posts-sync";
+import { applyPosted, applyRemoved, applyRestored, isPendingPost, onlyFeedPosts } from "@/lib/posts-sync";
 import type { Post } from "@/lib/types";
 
 export default function HomePage() {
@@ -17,9 +17,10 @@ export default function HomePage() {
 
   async function load(nextPage = 1) {
     const data = await api<{ posts: Post[]; hasMore: boolean }>(`/api/posts/feed?tab=following&page=${nextPage}`);
+    const feedPosts = onlyFeedPosts(data.posts);
     setPosts((current) => {
       const pending = current.filter(isPendingPost);
-      const next = nextPage === 1 ? data.posts : [...current.filter((item) => !isPendingPost(item)), ...data.posts];
+      const next = nextPage === 1 ? feedPosts : [...current.filter((item) => !isPendingPost(item)), ...feedPosts];
       if (nextPage !== 1) return next;
       const seen = new Set(next.map((item) => item.id));
       return [...pending.filter((item) => !seen.has(item.id)), ...next];
