@@ -5,10 +5,12 @@ import { Composer, PostCard } from "@/components/post";
 import { PageHeader } from "@/components/shell";
 import { Button, Empty, Spinner } from "@/components/ui";
 import { api } from "@/lib/api";
+import { useI18n } from "@/lib/i18n/provider";
 import { applyPosted, applyRemoved, applyRestored, isPendingPost, onlyFeedPosts } from "@/lib/posts-sync";
 import type { Post } from "@/lib/types";
 
 export default function HomePage() {
+  const { t } = useI18n();
   const [posts, setPosts] = useState<Post[]>([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
@@ -31,17 +33,17 @@ export default function HomePage() {
 
   useEffect(() => {
     load()
-      .catch((err) => setError(err instanceof Error ? err.message : "Could not load the feed"))
+      .catch((err) => setError(err instanceof Error ? err.message : t("home.loadError")))
       .finally(() => setLoading(false));
   }, []);
 
   return (
     <div>
-      <PageHeader title="Home" subtitle="People you follow" />
+      <PageHeader title={t("home.title")} subtitle={t("home.subtitle")} />
       <Composer onPosted={(post, replaceId) => setPosts((current) => applyPosted(current, post, replaceId))} />
       {loading && <Spinner />}
       {error && <p className="px-4 py-6 text-sm text-[#ff5d73]">{error}</p>}
-      {!loading && posts.length === 0 && <Empty title="Your feed is quiet" body="Follow Alex, Jordan, or Sam from Explore, or publish the first note yourself." />}
+      {!loading && posts.length === 0 && <Empty title={t("home.emptyTitle")} body={t("home.emptyBody")} />}
       {posts.map((post) => (
         <PostCard
           key={post.id}
@@ -54,7 +56,7 @@ export default function HomePage() {
       {hasMore && (
         <div className="p-4">
           <Button variant="ghost" onClick={() => load(page + 1)}>
-            Load more
+            {t("home.loadMore")}
           </Button>
         </div>
       )}

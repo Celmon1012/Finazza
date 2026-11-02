@@ -7,32 +7,27 @@ import { Bell, Bookmark, Compass, Home, LogOut, MessageCircle, PieChart, Setting
 import { api } from "@/lib/api";
 import { prefetchMessages } from "@/lib/chat-cache";
 import { useAuth } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n/provider";
 import type { Conversation, Investment } from "@/lib/types";
-import { DISCLAIMER, cn } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { Logo } from "./logo";
 import { Avatar, Spinner } from "./ui";
-
-const links = [
-  { href: "/home", label: "Home", icon: Home },
-  { href: "/explore", label: "Explore", icon: Compass },
-  { href: "/bookmarks", label: "Bookmarks", icon: Bookmark },
-  { href: "/chat", label: "Chatrooms", icon: MessageCircle, badge: "messages" as const },
-  { href: "/notifications", label: "Notifications", icon: Bell, badge: "notifications" as const },
-  { href: "/portfolio", label: "Portfolio", icon: PieChart },
-  { href: "/settings", label: "Settings", icon: Settings },
-];
-
-const phoneTabs = [
-  { href: "/home", label: "Home", icon: Home },
-  { href: "/explore", label: "Explore", icon: Compass },
-  { href: "/chat", label: "Chat", icon: MessageCircle, badge: "messages" as const },
-  { href: "/notifications", label: "Alerts", icon: Bell, badge: "notifications" as const },
-];
 
 function SideNav() {
   const pathname = usePathname() || "";
   const { user, badges, logout } = useAuth();
+  const { t } = useI18n();
   const router = useRouter();
+
+  const links = [
+    { href: "/home", label: t("nav.home"), icon: Home },
+    { href: "/explore", label: t("nav.explore"), icon: Compass },
+    { href: "/bookmarks", label: t("nav.bookmarks"), icon: Bookmark },
+    { href: "/chat", label: t("nav.chatrooms"), icon: MessageCircle, badge: "messages" as const },
+    { href: "/notifications", label: t("nav.notifications"), icon: Bell, badge: "notifications" as const },
+    { href: "/portfolio", label: t("nav.portfolio"), icon: PieChart },
+    { href: "/settings", label: t("nav.settings"), icon: Settings },
+  ];
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
@@ -67,17 +62,17 @@ function SideNav() {
           })}
           {user?.role === "admin" && (
             <Link href="/admin" className={cn("flex items-center gap-3 rounded-full px-4 py-3", pathname.startsWith("/admin") ? "bg-white font-semibold shadow-sm ring-1 ring-[#f0e6d8]" : "hover:bg-white/70")}>
-              <Settings size={22} /> Admin
+              <Settings size={22} /> {t("nav.admin")}
             </Link>
           )}
         </nav>
         <Link href="/home" className="gold-fill mt-4 flex w-full items-center justify-center gap-2 rounded-full py-3 font-semibold">
-          <SquarePen size={18} /> Post
+          <SquarePen size={18} /> {t("nav.post")}
         </Link>
       </div>
       <button
         type="button"
-        aria-label="Log out"
+        aria-label={t("nav.logOut")}
         className="mt-2 flex shrink-0 items-center gap-3 rounded-full border-t border-[#f0e6d8] px-3 py-3 text-left hover:bg-white/70"
         onClick={() => {
           logout();
@@ -97,17 +92,18 @@ function SideNav() {
 
 function AccountSheet({ onClose }: { onClose: () => void }) {
   const { user, logout } = useAuth();
+  const { t } = useI18n();
   const router = useRouter();
   const rows = [
-    { href: "/bookmarks", label: "Bookmarks", hint: "Posts you saved", icon: Bookmark },
-    { href: user?.username ? `/u/${user.username}?tab=investment` : "/portfolio", label: "Portfolio", hint: "On your profile", icon: PieChart },
-    { href: "/settings", label: "Settings", hint: "Profile, privacy, and password", icon: Settings },
-    ...(user?.role === "admin" ? [{ href: "/admin", label: "Admin", hint: "Moderation", icon: Settings }] : []),
+    { href: "/bookmarks", label: t("nav.bookmarks"), hint: t("sheet.bookmarksHint"), icon: Bookmark },
+    { href: user?.username ? `/u/${user.username}?tab=investment` : "/portfolio", label: t("nav.portfolio"), hint: t("sheet.portfolioHint"), icon: PieChart },
+    { href: "/settings", label: t("nav.settings"), hint: t("sheet.settingsHint"), icon: Settings },
+    ...(user?.role === "admin" ? [{ href: "/admin", label: t("nav.admin"), hint: t("sheet.adminHint"), icon: Settings }] : []),
   ];
 
   return (
     <div className="fixed inset-0 z-50 lg:hidden">
-      <button type="button" className="absolute inset-0 bg-black/40" aria-label="Close account" onClick={onClose} />
+      <button type="button" className="absolute inset-0 bg-black/40" aria-label={t("nav.closeAccount")} onClick={onClose} />
       <div className="sheet-rise absolute inset-x-0 bottom-0 rounded-t-[28px] border border-neutral-200 bg-white px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-24px_60px_-28px_rgba(28,20,12,0.45)]">
         <div className="mx-auto mb-4 h-1.5 w-11 rounded-full bg-neutral-200" />
         <Link href={user?.username ? `/u/${user.username}` : "/settings"} onClick={onClose} className="flex items-center gap-3 rounded-2xl bg-[#fff8ee] px-3 py-3">
@@ -143,7 +139,7 @@ function AccountSheet({ onClose }: { onClose: () => void }) {
           }}
         >
           <LogOut size={18} />
-          Log out
+          {t("nav.logOut")}
         </button>
       </div>
     </div>
@@ -153,9 +149,16 @@ function AccountSheet({ onClose }: { onClose: () => void }) {
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || "";
   const { user, badges } = useAuth();
+  const { t } = useI18n();
   const [accountOpen, setAccountOpen] = useState(false);
-  // Chat already lists rooms in its own column; the right rail just squeezes the thread on laptops.
   const hideRightRail = pathname === "/chat" || pathname.startsWith("/chat/");
+
+  const phoneTabs = [
+    { href: "/home", label: t("nav.home"), icon: Home },
+    { href: "/explore", label: t("nav.explore"), icon: Compass },
+    { href: "/chat", label: t("nav.chat"), icon: MessageCircle, badge: "messages" as const },
+    { href: "/notifications", label: t("nav.alerts"), icon: Bell, badge: "notifications" as const },
+  ];
 
   useEffect(() => {
     setAccountOpen(false);
@@ -191,14 +194,14 @@ export function Shell({ children }: { children: React.ReactNode }) {
           })}
           <button
             type="button"
-            aria-label="Account"
+            aria-label={t("nav.account")}
             className={cn("flex flex-1 flex-col items-center gap-1 py-2 text-[11px]", accountOpen ? "font-semibold text-[#c56a00]" : "text-neutral-500")}
             onClick={() => setAccountOpen(true)}
           >
             <span className={cn("rounded-full", accountOpen && "ring-2 ring-[#f0a020] ring-offset-2")}>
               <Avatar name={user?.displayName || "U"} url={user?.avatarUrl} size={22} />
             </span>
-            <span>You</span>
+            <span>{t("nav.you")}</span>
           </button>
         </div>
       </nav>
@@ -208,6 +211,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
 function RightRail() {
   const { user } = useAuth();
+  const { t } = useI18n();
   const [items, setItems] = useState<Investment[]>([]);
   const [rooms, setRooms] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -229,28 +233,28 @@ function RightRail() {
   return (
     <aside className="sticky top-0 hidden h-screen w-[340px] shrink-0 overflow-y-auto px-5 py-4 xl:block 2xl:w-[400px]">
       <section className="rounded-2xl border border-[#f0e6d8] bg-white/85 p-4 shadow-[0_20px_44px_-36px_rgba(120,70,0,0.55)] backdrop-blur-sm">
-        <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-neutral-500">Portfolio snapshot</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-neutral-500">{t("rail.portfolio")}</h2>
         {loading ? (
-          <Spinner label="Loading records" />
+          <Spinner label={t("rail.loadingRecords")} />
         ) : items.length === 0 ? (
-          <p className="mt-3 text-sm text-neutral-500">No holdings yet. Add one on your profile.</p>
+          <p className="mt-3 text-sm text-neutral-500">{t("rail.noHoldings")}</p>
         ) : (
           <ul className="mt-3 space-y-3">
             {items.map((item) => (
               <li key={item.id}>
                 <p className="text-sm">{item.snapshotLabel}</p>
-                {item.proof && <p className="text-xs text-[#c56a00]">Proof uploaded (public)</p>}
+                {item.proof && <p className="text-xs text-[#c56a00]">{t("rail.proofUploaded")}</p>}
               </li>
             ))}
           </ul>
         )}
         <Link href={user?.username ? `/u/${user.username}?tab=investment` : "/portfolio"} className="mt-4 inline-block text-sm text-[#c56a00]">
-          Open portfolio
+          {t("rail.openPortfolio")}
         </Link>
       </section>
 
       <section className="mt-4 rounded-2xl border border-[#f0e6d8] bg-white/85 p-4 shadow-[0_20px_44px_-36px_rgba(120,70,0,0.55)] backdrop-blur-sm">
-        <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-neutral-500">Topic rooms</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-neutral-500">{t("rail.topicRooms")}</h2>
         <ul className="mt-3 space-y-2">
           {rooms.map((room) => (
             <li key={room.id}>
@@ -262,7 +266,7 @@ function RightRail() {
           ))}
         </ul>
       </section>
-      <p className="mt-4 px-1 text-xs leading-5 text-neutral-500">{DISCLAIMER}</p>
+      <p className="mt-4 px-1 text-xs leading-5 text-neutral-500">{t("rail.disclaimer")}</p>
     </aside>
   );
 }

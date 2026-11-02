@@ -5,8 +5,9 @@ import { useEffect, useRef, useState } from "react";
 import { Bookmark, Heart, ImagePlus, MessageCircle, PenLine, Repeat2, Trash2, X } from "lucide-react";
 import { ApiError, api, mediaUrl } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n/provider";
 import type { Post } from "@/lib/types";
-import { cn, timeAgo } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { LinkPreview } from "./link-preview";
 import { ReportButton } from "./report-button";
 import { RichText } from "./rich-text";
@@ -14,7 +15,7 @@ import { Avatar, Button } from "./ui";
 
 export function Composer({
   replyTo,
-  placeholder = "Share a position, a chart, or a note",
+  placeholder,
   onPosted,
   variant = "post",
 }: {
@@ -25,10 +26,12 @@ export function Composer({
 }) {
   const replyMode = variant === "reply" || Boolean(replyTo);
   const { user } = useAuth();
+  const { t } = useI18n();
   const [text, setText] = useState("");
   const [files, setFiles] = useState<{ url: string; kind: "image" }[]>([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const resolvedPlaceholder = placeholder || (replyMode ? t("post.replyPlaceholder") : t("composer.placeholder"));
 
   async function onFiles(list: FileList | null) {
     if (!list?.length) return;
@@ -40,7 +43,7 @@ export function Composer({
       const result = await api<{ files: { url: string; kind: "image" }[] }>("/api/uploads", { method: "POST", body: form });
       setFiles((current) => [...current, ...result.files].slice(0, 4));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
+      setError(err instanceof Error ? err.message : t("composer.uploadFailed"));
     } finally {
       setBusy(false);
     }
@@ -85,7 +88,7 @@ export function Composer({
       onPosted?.(null, pendingId);
       setText((current) => current || draft);
       setFiles((current) => (current.length ? current : photos));
-      setError(err instanceof Error ? err.message : "Could not post");
+      setError(err instanceof Error ? err.message : t("composer.postFailed"));
     }
   }
 
@@ -105,7 +108,7 @@ export function Composer({
           value={text}
           maxLength={500}
           onChange={(event) => setText(event.target.value)}
-          placeholder={placeholder}
+          placeholder={resolvedPlaceholder}
           className={cn(
             "w-full resize-none bg-transparent placeholder:text-neutral-400 focus:outline-none",
             replyMode ? "min-h-12 text-[15px] leading-6" : "min-h-16 text-lg",
@@ -129,7 +132,7 @@ export function Composer({
             </label>
             {!replyMode && (
               <Link href="/annotate" className="text-xs font-medium">
-                Annotate chart
+                {t("composer.annotate")}
               </Link>
             )}
           </div>
@@ -137,19 +140,19 @@ export function Composer({
             <span className={cn("text-xs", text.length >= 450 ? "text-[#ff5d73]" : "text-neutral-500")}>
               {text.length === 0
                 ? files.length
-                  ? "Photo ready"
+                  ? t("composer.photoReady")
                   : replyMode
-                    ? "Join the thread"
-                    : "Write a note to post"
-                : `${text.length} of 500`}
+                    ? t("composer.joinThread")
+                    : t("composer.writeNote")
+                : t("composer.of500", { count: text.length })}
             </span>
             <Button
               type="submit"
               variant={text.trim() || files.length ? "primary" : "outline"}
               disabled={busy || (!text.trim() && files.length === 0)}
-              aria-label={text.trim() || files.length ? undefined : "Write a note or add a photo first"}
+              aria-label={text.trim() || files.length ? undefined : t("composer.writeNote")}
             >
-              {busy ? "Posting…" : replyMode ? "Reply" : "Post"}
+              {busy ? t("composer.posting") : replyMode ? t("composer.reply") : t("composer.post")}
             </Button>
           </div>
         </div>
@@ -160,6 +163,7 @@ export function Composer({
 }
 
 function Embedded({ post, className }: { post: NonNullable<Post["repostOf"]>; className?: string }) {
+  const { timeAgo } = useI18n();
   if (!post.author) return null;
   return (
     <Link href={`/post/${post.id}`} className={cn("mt-3 block rounded-2xl border border-[#f0e6d8] bg-white/70 p-3 hover:bg-white", className)}>
@@ -214,6 +218,7 @@ export function PostCard({
   onRestored?: (post: Post) => void;
 }) {
   const { user } = useAuth();
+  const { t, timeAgo } = useI18n();
   const [liked, setLiked] = useState(post.liked);
   const [likeCount, setLikeCount] = useState(post.likeCount);
   const [reposted, setReposted] = useState(post.reposted);
@@ -323,7 +328,7 @@ export function PostCard({
   }
 
   async function remove() {
-    if (removing || !confirm("Remove this post?")) return;
+    if (removing || !confirm(t("post.deleteConfirm"))) return;
     setRemoving(true);
     // Optimistic — match Composer: UI updates immediately, then the server confirms.
     setHidden(true);
@@ -335,13 +340,17 @@ export function PostCard({
       setHidden(false);
       setRemoving(false);
       onRestored?.(post);
-      window.alert(err instanceof Error ? err.message : "Could not remove this post");
+      window.alert(err instanceof Error ? err.message : t("post.deleteFailed"));
     }
   }
 
   return (
     <article className="border-b border-[#f0e6d8] px-4 py-3 transition-colors hover:bg-white/60">
-      {pureRepost && <p className="mb-2 pl-12 text-sm text-neutral-500">{author.displayName} reposted</p>}
+      {pureRepost && (
+        <p className="mb-2 pl-12 text-sm text-neutral-500">
+          {author.displayName} {t("post.reposted")}
+        </p>
+      )}
       <div className="flex gap-3">
         <Link href={`/u/${author.username}`}>
           <Avatar name={author.displayName} url={author.avatarUrl} />
@@ -356,7 +365,10 @@ export function PostCard({
           </div>
           {post.replyToAuthor && (
             <p className="text-sm text-neutral-500">
-              Replying to <Link className="text-[#c56a00]" href={`/u/${post.replyToAuthor.username}`}>@{post.replyToAuthor.username}</Link>
+              {t("post.replyingTo")}{" "}
+              <Link className="text-[#c56a00]" href={`/u/${post.replyToAuthor.username}`}>
+                @{post.replyToAuthor.username}
+              </Link>
             </p>
           )}
           {post.text && <RichText text={post.text} className="mt-1 whitespace-pre-wrap break-words text-[15px] leading-6" />}
@@ -368,7 +380,7 @@ export function PostCard({
               <Link
                 href={`/post/${post.repostOf!.id}`}
                 className="inline-flex items-center gap-1.5 text-sm hover:text-[#c56a00]"
-                title="Comment on the original"
+                title={t("post.commentOnOriginal")}
               >
                 <MessageCircle size={16} />
               </Link>
@@ -386,7 +398,7 @@ export function PostCard({
                 type="button"
                 disabled={pending}
                 onClick={() => setRepostMenu((open) => !open)}
-                aria-label="Repost or quote"
+                aria-label={t("post.repostOrQuote")}
                 aria-expanded={repostMenu}
                 className={cn("inline-flex items-center gap-1.5 text-sm hover:text-[#3dd68c]", reposted && "text-[#3dd68c]")}
               >
@@ -401,8 +413,8 @@ export function PostCard({
                   >
                     <Repeat2 size={16} className="text-[#3dd68c]" />
                     <span>
-                      <span className="block font-semibold">{reposted ? "Undo repost" : "Repost"}</span>
-                      <span className="block text-xs text-neutral-500">{reposted ? "Remove from your timeline" : "Share as it is"}</span>
+                      <span className="block font-semibold">{reposted ? t("post.undoRepost") : t("post.repost")}</span>
+                      <span className="block text-xs text-neutral-500">{reposted ? t("post.undoRepostHint") : t("post.repostHint")}</span>
                     </span>
                   </button>
                   <button
@@ -416,8 +428,8 @@ export function PostCard({
                   >
                     <PenLine size={16} className="text-[#c56a00]" />
                     <span>
-                      <span className="block font-semibold">Quote</span>
-                      <span className="block text-xs text-neutral-500">Add your take above it</span>
+                      <span className="block font-semibold">{t("post.quote")}</span>
+                      <span className="block text-xs text-neutral-500">{t("post.quoteHint")}</span>
                     </span>
                   </button>
                 </div>
@@ -457,9 +469,9 @@ export function PostCard({
               <button type="button" className="rounded-full p-1.5 text-neutral-500 hover:bg-white" aria-label="Close" disabled={quoteBusy} onClick={() => setQuoteOpen(false)}>
                 <X size={18} />
               </button>
-              <h2 className="text-base font-semibold">Quote</h2>
+              <h2 className="text-base font-semibold">{t("post.quoteTitle")}</h2>
               <Button type="submit" disabled={quoteBusy || !quoteText.trim()} className="min-w-[5.5rem]">
-                {quoteBusy ? "Posting…" : "Quote"}
+                {quoteBusy ? t("post.quoteBusy") : t("post.quoteSubmit")}
               </Button>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
@@ -471,12 +483,12 @@ export function PostCard({
                     maxLength={500}
                     autoFocus
                     onChange={(event) => setQuoteText(event.target.value)}
-                    placeholder="Add a comment"
+                    placeholder={t("post.quotePlaceholder")}
                     className="min-h-24 w-full resize-none bg-transparent text-lg placeholder:text-neutral-400 focus:outline-none"
                   />
                   <Embedded post={source as NonNullable<Post["repostOf"]>} className="mt-2" />
                   <div className="mt-3 flex items-center justify-between gap-3 text-xs text-neutral-500">
-                    <span>Your comment sits above their post. Everyone can reply to your quote.</span>
+                    <span>{t("post.quoteHelp")}</span>
                     <span className={cn(quoteText.length >= 450 && "text-[#ff5d73]")}>{quoteText.length}/500</span>
                   </div>
                   {quoteError && <p className="mt-2 text-sm text-[#ff5d73]">{quoteError}</p>}
@@ -501,6 +513,7 @@ export function ReplyCard({
   onRestored?: (post: Post) => void;
 }) {
   const { user } = useAuth();
+  const { t, timeAgo } = useI18n();
   const [liked, setLiked] = useState(post.liked);
   const [likeCount, setLikeCount] = useState(post.likeCount);
   const [hidden, setHidden] = useState(false);
@@ -526,7 +539,7 @@ export function ReplyCard({
   }
 
   async function remove() {
-    if (removing || !confirm("Remove this reply?")) return;
+    if (removing || !confirm(t("post.deleteReplyConfirm"))) return;
     setRemoving(true);
     setHidden(true);
     onRemoved?.(post.id);
@@ -537,7 +550,7 @@ export function ReplyCard({
       setHidden(false);
       setRemoving(false);
       onRestored?.(post);
-      window.alert(err instanceof Error ? err.message : "Could not remove this reply");
+      window.alert(err instanceof Error ? err.message : t("post.deleteReplyFailed"));
     }
   }
 

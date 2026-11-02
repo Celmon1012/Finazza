@@ -6,10 +6,12 @@ import { PostCard } from "@/components/post";
 import { PageHeader } from "@/components/shell";
 import { Avatar, inputClass, Spinner } from "@/components/ui";
 import { api } from "@/lib/api";
+import { useI18n } from "@/lib/i18n/provider";
 import { applyRemoved, applyRestored, onlyFeedPosts } from "@/lib/posts-sync";
 import type { Post, PublicUser } from "@/lib/types";
 
 export default function ExplorePage() {
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [posts, setPosts] = useState<Post[]>([]);
   const [users, setUsers] = useState<PublicUser[]>([]);
@@ -37,9 +39,9 @@ export default function ExplorePage() {
 
   return (
     <div>
-      <PageHeader title="Explore" subtitle="Latest notes across FINAZZA" />
+      <PageHeader title={t("explore.title")} subtitle={t("explore.subtitle")} />
       <div className="border-b border-neutral-200 p-4">
-        <input className={inputClass} placeholder="Search people and posts" value={query} onChange={(event) => setQuery(event.target.value)} />
+        <input className={inputClass} placeholder={t("explore.searchPlaceholder")} value={query} onChange={(event) => setQuery(event.target.value)} />
         {users.length > 0 && (
           <ul className="mt-3 space-y-2">
             {users.map((person) => (

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Camera, X } from "lucide-react";
 import { api, mediaUrl } from "@/lib/api";
+import { useI18n } from "@/lib/i18n/provider";
 import { cn } from "@/lib/utils";
 
 export function Button({
@@ -45,11 +46,12 @@ export function Field({
 export const inputClass =
   "w-full rounded-xl border border-neutral-200 bg-white px-3 py-2.5 text-sm text-neutral-950 placeholder:text-neutral-400";
 
-export function Spinner({ label = "Loading" }: { label?: string }) {
+export function Spinner({ label }: { label?: string }) {
+  const { t } = useI18n();
   return (
     <div className="flex items-center justify-center gap-3 py-16 text-sm text-neutral-500" role="status">
       <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#ffc14d] border-t-transparent" />
-      {label}
+      {label || t("common.loading")}
     </div>
   );
 }

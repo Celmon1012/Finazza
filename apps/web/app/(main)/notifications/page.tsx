@@ -6,11 +6,12 @@ import { PageHeader } from "@/components/shell";
 import { Avatar, Button, Empty, Spinner } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n/provider";
 import type { AppNotification } from "@/lib/types";
-import { timeAgo } from "@/lib/utils";
 
 export default function NotificationsPage() {
   const { refreshBadges } = useAuth();
+  const { t, timeAgo } = useI18n();
   const [items, setItems] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -39,14 +40,14 @@ export default function NotificationsPage() {
 
   return (
     <div>
-      <PageHeader title="Notifications" />
+      <PageHeader title={t("notifications.title")} />
       <div className="flex justify-end border-b border-neutral-200 px-4 py-2">
         <Button variant="ghost" onClick={readAll}>
-          Mark all read
+          {t("notifications.markAll")}
         </Button>
       </div>
       {loading && <Spinner />}
-      {!loading && items.length === 0 && <Empty title="No notifications" body="Likes, replies, follows, mentions, and chat will land here." />}
+      {!loading && items.length === 0 && <Empty title={t("notifications.emptyTitle")} body={t("notifications.emptyBody")} />}
       <ul>
         {items.map((item) => (
           <li key={item.id} className={item.read ? "border-b border-neutral-200" : "border-b border-neutral-200 bg-[#ff7a18]/5"}>

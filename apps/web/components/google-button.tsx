@@ -1,6 +1,7 @@
 "use client";
 
 import { API_URL } from "@/lib/api";
+import { useI18n } from "@/lib/i18n/provider";
 
 function GoogleMark() {
   return (
@@ -14,13 +15,13 @@ function GoogleMark() {
 }
 
 function startGoogleSignIn() {
-  // Same-origin on Vercel; local web (:3000) talks to the API on :4000.
   const host = window.location.hostname;
   const href = host === "localhost" || host === "127.0.0.1" ? `${API_URL}/api/auth/google` : "/api/auth/google";
   window.location.assign(href);
 }
 
-export function GoogleButton({ label = "Continue with Google" }: { label?: string }) {
+export function GoogleButton({ label }: { label?: string }) {
+  const { t } = useI18n();
   return (
     <div className="space-y-3">
       <button
@@ -29,22 +30,22 @@ export function GoogleButton({ label = "Continue with Google" }: { label?: strin
         className="flex w-full items-center justify-center gap-3 rounded-full border border-[#f0e6d8] bg-white px-4 py-2.5 text-sm font-semibold text-neutral-900 shadow-sm transition hover:bg-[#fff8ee]"
       >
         <GoogleMark />
-        {label}
+        {label || t("auth.google")}
       </button>
       <p className="text-center text-xs leading-5 text-neutral-500">
-        By continuing with Google you agree to the{" "}
+        {t("auth.googleAgree")}{" "}
         <a href="/terms" className="text-[#c56a00]">
-          Terms of Use
+          {t("auth.terms")}
         </a>{" "}
-        and{" "}
+        {t("auth.and")}{" "}
         <a href="/privacy" className="text-[#c56a00]">
-          Privacy Policy
+          {t("auth.privacy")}
         </a>
         .
       </p>
       <div className="flex items-center gap-3 text-xs uppercase tracking-[0.14em] text-neutral-400">
         <span className="h-px flex-1 bg-[#f0e6d8]" />
-        or continue with email
+        {t("auth.orEmail")}
         <span className="h-px flex-1 bg-[#f0e6d8]" />
       </div>
     </div>

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Instrument_Serif, Outfit } from "next/font/google";
 import { AuthProvider } from "@/lib/auth";
+import { I18nProvider } from "@/lib/i18n/provider";
 import "./globals.css";
 
 const sans = Outfit({ subsets: ["latin"], variable: "--font-sans" });
@@ -32,7 +33,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${sans.variable} ${serif.variable} font-sans antialiased`} suppressHydrationWarning>
-        <AuthProvider>{children}</AuthProvider>
+        <I18nProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </I18nProvider>
       </body>
     </html>
   );

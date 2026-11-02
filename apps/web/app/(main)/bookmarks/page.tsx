@@ -5,10 +5,12 @@ import { PostCard } from "@/components/post";
 import { PageHeader } from "@/components/shell";
 import { Empty, Spinner } from "@/components/ui";
 import { api } from "@/lib/api";
+import { useI18n } from "@/lib/i18n/provider";
 import { applyRemoved, applyRestored } from "@/lib/posts-sync";
 import type { Post } from "@/lib/types";
 
 export default function BookmarksPage() {
+  const { t } = useI18n();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -16,16 +18,16 @@ export default function BookmarksPage() {
   useEffect(() => {
     api<{ posts: Post[] }>("/api/posts/bookmarks")
       .then((data) => setPosts(data.posts))
-      .catch((err) => setError(err instanceof Error ? err.message : "Could not load bookmarks"))
+      .catch((err) => setError(err instanceof Error ? err.message : t("bookmarks.loadError")))
       .finally(() => setLoading(false));
   }, []);
 
   return (
     <div>
-      <PageHeader title="Bookmarks" subtitle="Posts you saved. Only you can see this list." />
+      <PageHeader title={t("bookmarks.title")} subtitle={t("bookmarks.subtitle")} />
       {loading && <Spinner />}
       {error && <p className="px-4 py-6 text-sm text-[#ff5d73]">{error}</p>}
-      {!loading && posts.length === 0 && <Empty title="No bookmarks yet" body="Tap the bookmark on a post to save it here." />}
+      {!loading && posts.length === 0 && <Empty title={t("bookmarks.emptyTitle")} body={t("bookmarks.emptyBody")} />}
       {posts.map((post) => (
         <PostCard
           key={post.id}

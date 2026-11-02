@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { Logo } from "@/components/logo";
 import { Reveal } from "@/components/reveal";
 import { useAuth } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n/provider";
 import { cn, DISCLAIMER } from "@/lib/utils";
 
 const rooms = [
@@ -32,6 +33,7 @@ const steps = [
 
 export default function LandingPage() {
   const { user, ready } = useAuth();
+  const { t, locale, setLocale } = useI18n();
   const router = useRouter();
 
   useEffect(() => {
@@ -79,12 +81,20 @@ export default function LandingPage() {
         <div className="mx-auto flex max-w-[1200px] items-center justify-between px-5 py-3 sm:px-8">
           <Logo />
           <div className="flex items-center gap-1 sm:gap-2">
+            <button
+              type="button"
+              className="rounded-full px-2.5 py-2 text-xs font-medium text-[#8a8178] hover:bg-[#fff1dc] sm:px-3"
+              onClick={() => setLocale(locale === "zh-HK" ? "en" : "zh-HK")}
+              aria-label={t("settings.language")}
+            >
+              {locale === "zh-HK" ? "EN" : "繁"}
+            </button>
             <Link href="/login" className="whitespace-nowrap rounded-full px-3 py-2 text-sm text-[#1c140c] hover:bg-[#fff1dc] sm:px-4">
-              Sign in
+              {t("landing.signIn")}
             </Link>
             <Link href="/register" className="gold-fill whitespace-nowrap rounded-full px-3 py-2 text-sm font-semibold sm:px-4">
-              <span className="sm:hidden">Join</span>
-              <span className="hidden sm:inline">Create account</span>
+              <span className="sm:hidden">{t("landing.getStarted")}</span>
+              <span className="hidden sm:inline">{t("auth.createAccount")}</span>
             </Link>
           </div>
         </div>
