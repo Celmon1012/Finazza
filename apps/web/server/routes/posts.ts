@@ -98,8 +98,7 @@ router.post(
     if (body.replyTo) {
       replyParent = await Post.findOne({ _id: body.replyTo, deletedAt: null }).populate(postPopulate);
       if (!replyParent) throw new HttpError(404, "The post you are replying to is unavailable");
-      const pureRepost = Boolean(replyParent.repostOf && !replyParent.text && !(replyParent.attachments || []).length);
-      if (pureRepost) throw new HttpError(400, "You cannot reply to a plain repost. Open the original post to comment.");
+      // Each post keeps its own reply thread — including quotes and plain reposts.
     }
     if (body.repostOf) {
       quoteOriginal = await Post.findOne({ _id: body.repostOf, deletedAt: null }).populate(postPopulate);

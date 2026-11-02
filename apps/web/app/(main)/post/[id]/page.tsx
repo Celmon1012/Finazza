@@ -27,17 +27,9 @@ export default function PostPage() {
     });
   }
 
-  const pureRepost = Boolean(post?.repostOf && !post.text && post.attachments.length === 0);
-
   useEffect(() => {
     load().catch((err) => setError(err instanceof Error ? err.message : t("post.unavailable")));
   }, [id]);
-
-  useEffect(() => {
-    if (pureRepost && post?.repostOf?.id) {
-      router.replace(`/post/${post.repostOf.id}`);
-    }
-  }, [pureRepost, post?.repostOf?.id, router]);
 
   const replyLabel =
     !post || post.replyCount === 0
@@ -57,7 +49,7 @@ export default function PostPage() {
       {error && <p className="px-4 py-6 text-sm text-[#ff5d73]">{error}</p>}
       {!post && !error && <Spinner />}
 
-      {post && !pureRepost && (
+      {post && (
         <PostCard
           post={post}
           onChange={load}
@@ -68,7 +60,7 @@ export default function PostPage() {
         />
       )}
 
-      {post && !pureRepost && (
+      {post && (
         <section className="border-b border-[#f0e6d8] bg-gradient-to-b from-[#fff8ee]/80 to-transparent px-4 py-4">
           <div className="mb-3 flex items-center gap-2 text-sm text-neutral-500">
             <MessageCircle size={16} className="text-[#c56a00]" />
@@ -88,7 +80,7 @@ export default function PostPage() {
         </section>
       )}
 
-      {post && !pureRepost && (
+      {post && (
         <section className="px-4 pb-10 pt-2">
           {replies.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-[#f0e6d8] bg-white/40 px-4 py-10 text-center">

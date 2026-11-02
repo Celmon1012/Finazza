@@ -376,16 +376,7 @@ export function PostCard({
           <AttachmentGrid files={post.attachments} />
           {post.repostOf && <Embedded post={post.repostOf} />}
           <div className="mt-3 flex max-w-md items-center justify-between text-neutral-500">
-            {pureRepost ? (
-              <Link
-                href={`/post/${post.repostOf!.id}`}
-                className="inline-flex min-w-[3rem] items-center gap-1.5 text-sm tabular-nums hover:text-[#c56a00]"
-                title={t("post.commentOnOriginal")}
-              >
-                <MessageCircle size={16} />
-                <span>{post.repostOf?.replyCount ? post.repostOf.replyCount : ""}</span>
-              </Link>
-            ) : pending ? (
+            {pending ? (
               <span className="inline-flex min-w-[3rem] items-center gap-1.5 text-sm tabular-nums">
                 <MessageCircle size={16} />
                 <span>{post.replyCount ? post.replyCount : ""}</span>
@@ -450,7 +441,7 @@ export function PostCard({
               <Bookmark size={16} fill={bookmarked ? "currentColor" : "none"} />
             </button>
             <span className="flex items-center gap-3">
-              <ReportButton targetType="post" targetId={pureRepost && post.repostOf ? post.repostOf.id : post.id} label="" />
+              <ReportButton targetType="post" targetId={post.id} label="" />
               {user?.id === author.id && !pending && (
                 <button type="button" onClick={remove} aria-label="Delete post" className="hover:text-[#ff5d73]">
                   <Trash2 size={15} />

@@ -51,7 +51,6 @@ export type Post = {
     createdAt: string;
     attachments: { url: string; kind: "image" }[];
     author: PublicUser | null;
-    replyCount?: number;
   };
   author: PublicUser | null;
   likeCount: number;

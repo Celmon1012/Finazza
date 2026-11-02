@@ -60,19 +60,17 @@ export function savedPostIds(user: any) {
 export async function presentPosts(posts: any[], viewerId?: string, savedIds?: Set<string>) {
   const visible = posts.filter((post) => post && !post.deletedAt && !(post.repostOf && post.repostOf.deletedAt));
   const ids = visible.map((post) => post._id);
-  const originalIds = visible.map((post) => post.repostOf?._id || post.repostOf).filter(Boolean);
   const [likes, reposts, replyCounts] = await Promise.all([
     viewerId ? Like.find({ user: viewerId, post: { $in: ids } }).select("post") : [],
     viewerId ? Repost.find({ user: viewerId, post: { $in: ids } }).select("post") : [],
-    // Live count from reply rows — stored reply_count can lag or drift.
-    Post.countRepliesByParents([...ids, ...originalIds].map(String)),
+    // Live count from reply rows — each post keeps its own thread (quotes/reposts included).
+    Post.countRepliesByParents(ids.map(String)),
   ]);
   const liked = new Set(likes.map((row) => String(row.post)));
   const reposted = new Set(reposts.map((row) => String(row.post)));
 
   return visible.map((post) => {
     const id = String(post._id);
-    const originalId = post.repostOf ? String(post.repostOf._id || post.repostOf) : null;
     return {
       id,
       text: post.text || "",
@@ -82,12 +80,11 @@ export async function presentPosts(posts: any[], viewerId?: string, savedIds?: S
       replyToAuthor: post.replyTo?.author?.username ? { username: post.replyTo.author.username } : null,
       repostOf: post.repostOf
         ? {
-            id: originalId!,
+            id: String(post.repostOf._id || post.repostOf),
             text: post.repostOf.text || "",
             createdAt: post.repostOf.createdAt,
             attachments: (post.repostOf.attachments || []).map((file: any) => ({ url: file.url, kind: "image" })),
             author: authorMini(post.repostOf.author),
-            replyCount: replyCounts.get(originalId!) || 0,
           }
         : null,
       author: authorMini(post.author),
