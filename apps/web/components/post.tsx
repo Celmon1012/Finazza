@@ -16,11 +16,14 @@ export function Composer({
   replyTo,
   placeholder = "Share a position, a chart, or a note",
   onPosted,
+  variant = "post",
 }: {
   replyTo?: string;
   placeholder?: string;
   onPosted?: (post: Post | null, replaceId?: string) => void;
+  variant?: "post" | "reply";
 }) {
+  const replyMode = variant === "reply" || Boolean(replyTo);
   const { user } = useAuth();
   const [text, setText] = useState("");
   const [files, setFiles] = useState<{ url: string; kind: "image" }[]>([]);
@@ -87,15 +90,26 @@ export function Composer({
   }
 
   return (
-    <form onSubmit={submit} className="flex gap-3 border-b border-[#f0e6d8] px-4 py-3">
-      <Avatar name={user?.displayName || "You"} url={user?.avatarUrl} />
+    <form
+      onSubmit={submit}
+      className={cn(
+        "flex gap-3 px-4 py-3",
+        replyMode
+          ? "rounded-2xl border border-[#f0e6d8] bg-white/80 shadow-[0_12px_32px_-28px_rgba(120,70,0,0.55)]"
+          : "border-b border-[#f0e6d8]",
+      )}
+    >
+      <Avatar name={user?.displayName || "You"} url={user?.avatarUrl} size={replyMode ? 36 : 40} />
       <div className="min-w-0 flex-1">
         <textarea
           value={text}
           maxLength={500}
           onChange={(event) => setText(event.target.value)}
           placeholder={placeholder}
-          className="min-h-16 w-full resize-none bg-transparent text-lg placeholder:text-neutral-400"
+          className={cn(
+            "w-full resize-none bg-transparent placeholder:text-neutral-400 focus:outline-none",
+            replyMode ? "min-h-12 text-[15px] leading-6" : "min-h-16 text-lg",
+          )}
         />
         {files.length > 0 && (
           <div className="mb-2 flex gap-2">
@@ -106,20 +120,28 @@ export function Composer({
             ))}
           </div>
         )}
-        <LinkPreview text={text} className="mb-3 block overflow-hidden rounded-2xl border border-[#f0e6d8] bg-white/80 transition hover:bg-white" />
+        {!replyMode && <LinkPreview text={text} className="mb-3 block overflow-hidden rounded-2xl border border-[#f0e6d8] bg-white/80 transition hover:bg-white" />}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-3 text-[#c56a00]">
             <label className="cursor-pointer">
               <ImagePlus size={18} />
               <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" multiple onChange={(event) => onFiles(event.target.files)} />
             </label>
-            <Link href="/annotate" className="text-xs font-medium">
-              Annotate chart
-            </Link>
+            {!replyMode && (
+              <Link href="/annotate" className="text-xs font-medium">
+                Annotate chart
+              </Link>
+            )}
           </div>
           <div className="flex items-center gap-3">
             <span className={cn("text-xs", text.length >= 450 ? "text-[#ff5d73]" : "text-neutral-500")}>
-              {text.length === 0 ? (files.length ? "Photo ready" : "Write a note to post") : `${text.length} of 500`}
+              {text.length === 0
+                ? files.length
+                  ? "Photo ready"
+                  : replyMode
+                    ? "Join the thread"
+                    : "Write a note to post"
+                : `${text.length} of 500`}
             </span>
             <Button
               type="submit"
@@ -127,7 +149,7 @@ export function Composer({
               disabled={busy || (!text.trim() && files.length === 0)}
               aria-label={text.trim() || files.length ? undefined : "Write a note or add a photo first"}
             >
-              {busy ? "Posting…" : replyTo ? "Reply" : "Post"}
+              {busy ? "Posting…" : replyMode ? "Reply" : "Post"}
             </Button>
           </div>
         </div>
@@ -464,6 +486,93 @@ export function PostCard({
           </form>
         </div>
       )}
+    </article>
+  );
+}
+
+/** Compact comment row for the post detail thread (not shown in the main feed). */
+export function ReplyCard({
+  post,
+  onRemoved,
+  onRestored,
+}: {
+  post: Post;
+  onRemoved?: (id: string) => void;
+  onRestored?: (post: Post) => void;
+}) {
+  const { user } = useAuth();
+  const [liked, setLiked] = useState(post.liked);
+  const [likeCount, setLikeCount] = useState(post.likeCount);
+  const [hidden, setHidden] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const author = post.author;
+  const pending = post.id.startsWith("pending-");
+
+  if (hidden || !author) return null;
+
+  async function toggleLike() {
+    if (pending) return;
+    const previous = { liked, likeCount };
+    setLiked(!liked);
+    setLikeCount(Math.max(0, likeCount + (liked ? -1 : 1)));
+    try {
+      const result = await api<{ liked: boolean; likeCount: number }>(`/api/posts/${post.id}/like`, { method: "POST" });
+      setLiked(result.liked);
+      setLikeCount(result.likeCount);
+    } catch {
+      setLiked(previous.liked);
+      setLikeCount(previous.likeCount);
+    }
+  }
+
+  async function remove() {
+    if (removing || !confirm("Remove this reply?")) return;
+    setRemoving(true);
+    setHidden(true);
+    onRemoved?.(post.id);
+    try {
+      await api(`/api/posts/${post.id}`, { method: "DELETE" });
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) return;
+      setHidden(false);
+      setRemoving(false);
+      onRestored?.(post);
+      window.alert(err instanceof Error ? err.message : "Could not remove this reply");
+    }
+  }
+
+  return (
+    <article className="group relative flex gap-3 px-1 py-4">
+      <div className="absolute left-[17px] top-0 h-full w-px bg-[#f0e6d8] group-last:hidden" aria-hidden />
+      <Link href={`/u/${author.username}`} className="relative z-[1] shrink-0">
+        <Avatar name={author.displayName} url={author.avatarUrl} size={34} />
+      </Link>
+      <div className="min-w-0 flex-1 rounded-2xl border border-[#f0e6d8]/80 bg-white/70 px-3.5 py-3 shadow-[0_10px_28px_-26px_rgba(120,70,0,0.5)]">
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm">
+          <Link href={`/u/${author.username}`} className="font-semibold hover:underline">
+            {author.displayName}
+          </Link>
+          <span className="text-neutral-500">@{author.username}</span>
+          <span className="text-neutral-400">· {timeAgo(post.createdAt)}</span>
+        </div>
+        {post.text && <RichText text={post.text} className="mt-1.5 whitespace-pre-wrap break-words text-[15px] leading-6" />}
+        <AttachmentGrid files={post.attachments} />
+        <div className="mt-2.5 flex items-center gap-4 text-neutral-500">
+          <button
+            type="button"
+            disabled={pending}
+            onClick={toggleLike}
+            className={cn("inline-flex items-center gap-1.5 text-xs hover:text-[#ff5d73]", liked && "text-[#ff5d73]")}
+          >
+            <Heart size={14} fill={liked ? "currentColor" : "none"} /> {likeCount || ""}
+          </button>
+          {user?.id === author.id && !pending && (
+            <button type="button" onClick={remove} aria-label="Delete reply" className="text-xs hover:text-[#ff5d73]">
+              <Trash2 size={14} />
+            </button>
+          )}
+        </div>
+      </div>
     </article>
   );
 }

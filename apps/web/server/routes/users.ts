@@ -152,7 +152,7 @@ router.get(
     if (!user || user.suspended) throw new HttpError(404, "Profile unavailable");
     const page = Math.max(1, Number(req.query.page || 1));
     const limit = 20;
-    const docs = await Post.find({ author: user._id, deletedAt: null })
+    const docs = await Post.find({ author: user._id, deletedAt: null, replyTo: null })
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit + 1)

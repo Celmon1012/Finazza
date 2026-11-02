@@ -158,7 +158,7 @@ router.get(
       User.find({ suspended: false, $or: [{ username: pattern }, { displayName: pattern }] })
         .limit(8)
         .select("username displayName avatarUrl bio"),
-      Post.find({ deletedAt: null, text: pattern }).sort({ createdAt: -1 }).limit(8).populate(postPopulate),
+      Post.find({ deletedAt: null, replyTo: null, text: pattern }).sort({ createdAt: -1 }).limit(8).populate(postPopulate),
     ]);
     res.json({
       users: users.map(authorMini),

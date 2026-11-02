@@ -52,7 +52,8 @@ router.get(
     const page = Math.max(1, Number(req.query.page || 1));
     const limit = 20;
     const exclude = await excludedAuthorIds(req.user!);
-    const query: Record<string, unknown> = { deletedAt: null, author: { $nin: exclude } };
+    // Top-level posts only — replies live under the parent post, not in the feed.
+    const query: Record<string, unknown> = { deletedAt: null, replyTo: null, author: { $nin: exclude } };
 
     if (tab === "following") {
       const following = await Follow.find({ follower: req.user!._id }).distinct("following");

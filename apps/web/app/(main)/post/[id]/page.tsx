@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowLeft } from "lucide-react";
-import { Composer, PostCard } from "@/components/post";
+import { ArrowLeft, MessageCircle } from "lucide-react";
+import { Composer, PostCard, ReplyCard } from "@/components/post";
 import { Spinner } from "@/components/ui";
 import { api } from "@/lib/api";
 import { applyPosted, applyRemoved, applyRestored } from "@/lib/posts-sync";
@@ -32,7 +32,6 @@ export default function PostPage() {
   }, [id]);
 
   useEffect(() => {
-    // Reposts are boost-only — open the original post instead of commenting here.
     if (pureRepost && post?.repostOf?.id) {
       router.replace(`/post/${post.repostOf.id}`);
     }
@@ -48,6 +47,7 @@ export default function PostPage() {
       </header>
       {error && <p className="px-4 py-6 text-sm text-[#ff5d73]">{error}</p>}
       {!post && !error && <Spinner />}
+
       {post && !pureRepost && (
         <PostCard
           post={post}
@@ -58,32 +58,56 @@ export default function PostPage() {
           }}
         />
       )}
+
       {post && !pureRepost && (
-        <Composer
-          replyTo={id}
-          placeholder="Post your reply"
-          onPosted={(reply, replaceId) => {
-            setReplies((current) => applyPosted(current, reply, replaceId));
-            if (!replaceId && reply) setPost((current) => (current ? { ...current, replyCount: current.replyCount + 1 } : current));
-            if (replaceId && !reply) setPost((current) => (current ? { ...current, replyCount: Math.max(0, current.replyCount - 1) } : current));
-          }}
-        />
-      )}
-      {!pureRepost &&
-        replies.map((reply) => (
-          <PostCard
-            key={reply.id}
-            post={reply}
-            onRemoved={(replyId) => {
-              setReplies((current) => applyRemoved(current, replyId));
-              setPost((current) => (current ? { ...current, replyCount: Math.max(0, current.replyCount - 1) } : current));
-            }}
-            onRestored={(item) => {
-              setReplies((current) => applyRestored(current, item));
-              setPost((current) => (current ? { ...current, replyCount: current.replyCount + 1 } : current));
+        <section className="border-b border-[#f0e6d8] bg-gradient-to-b from-[#fff8ee]/80 to-transparent px-4 py-4">
+          <div className="mb-3 flex items-center gap-2 text-sm text-neutral-500">
+            <MessageCircle size={16} className="text-[#c56a00]" />
+            <span className="font-medium text-neutral-700">
+              {post.replyCount === 0 ? "No replies yet" : `${post.replyCount} ${post.replyCount === 1 ? "reply" : "replies"}`}
+            </span>
+            <span className="text-neutral-400">· stays on this post, not in the feed</span>
+          </div>
+          <Composer
+            replyTo={id}
+            variant="reply"
+            placeholder="Write a reply…"
+            onPosted={(reply, replaceId) => {
+              setReplies((current) => applyPosted(current, reply, replaceId));
+              if (!replaceId && reply) setPost((current) => (current ? { ...current, replyCount: current.replyCount + 1 } : current));
+              if (replaceId && !reply) setPost((current) => (current ? { ...current, replyCount: Math.max(0, current.replyCount - 1) } : current));
             }}
           />
-        ))}
+        </section>
+      )}
+
+      {post && !pureRepost && (
+        <section className="px-4 pb-10 pt-2">
+          {replies.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-[#f0e6d8] bg-white/40 px-4 py-10 text-center">
+              <p className="text-sm font-medium text-neutral-700">Start the discussion</p>
+              <p className="mt-1 text-sm text-neutral-500">Replies appear here under the post. They do not show up on Home or Explore.</p>
+            </div>
+          ) : (
+            <div className="relative">
+              {replies.map((reply) => (
+                <ReplyCard
+                  key={reply.id}
+                  post={reply}
+                  onRemoved={(replyId) => {
+                    setReplies((current) => applyRemoved(current, replyId));
+                    setPost((current) => (current ? { ...current, replyCount: Math.max(0, current.replyCount - 1) } : current));
+                  }}
+                  onRestored={(item) => {
+                    setReplies((current) => applyRestored(current, item));
+                    setPost((current) => (current ? { ...current, replyCount: current.replyCount + 1 } : current));
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+      )}
     </div>
   );
 }
