@@ -86,18 +86,27 @@ router.post(
     if (!body.text && body.attachments.length === 0 && !body.repostOf) {
       throw new HttpError(400, "Write something or attach an image");
     }
-    // Reposts are boost-only (no quote/comment). Use POST /api/posts/:id/repost.
-    if (body.repostOf) {
-      throw new HttpError(400, "Reposts cannot include a comment. Use the repost button instead.");
+    // Plain boost: POST /:id/repost. Quote: text (or photo) + repostOf.
+    if (body.repostOf && !body.text && body.attachments.length === 0) {
+      throw new HttpError(400, "Add a comment to quote, or use the plain repost button.");
     }
     if (body.text) assertCleanText(body.text);
 
     let replyParent: any = null;
+    let quoteOriginal: any = null;
     if (body.replyTo) {
-      replyParent = await Post.findOne({ _id: body.replyTo, deletedAt: null }).populate("repostOf");
+      replyParent = await Post.findOne({ _id: body.replyTo, deletedAt: null }).populate(postPopulate);
       if (!replyParent) throw new HttpError(404, "The post you are replying to is unavailable");
       const pureRepost = Boolean(replyParent.repostOf && !replyParent.text && !(replyParent.attachments || []).length);
-      if (pureRepost) throw new HttpError(400, "You cannot reply to a repost. Open the original post to comment.");
+      if (pureRepost) throw new HttpError(400, "You cannot reply to a plain repost. Open the original post to comment.");
+    }
+    if (body.repostOf) {
+      quoteOriginal = await Post.findOne({ _id: body.repostOf, deletedAt: null }).populate(postPopulate);
+      if (!quoteOriginal) throw new HttpError(404, "That post is unavailable");
+      // Quote the original idea, not another plain boost wrapper.
+      if (quoteOriginal.repostOf && !quoteOriginal.text && !(quoteOriginal.attachments || []).length) {
+        throw new HttpError(400, "Quote the original post instead of a plain repost");
+      }
     }
 
     const post = await Post.create({
@@ -108,24 +117,9 @@ router.post(
       repostOf: body.repostOf || null,
     });
 
-    res.status(201).json({
-      post: {
-        id: String(post._id),
-        text: post.text || "",
-        createdAt: post.createdAt,
-        attachments: (post.attachments || []).map((file: { url: string; kind?: string }) => ({ url: file.url, kind: file.kind || "image" })),
-        replyTo: body.replyTo || null,
-        replyToAuthor: null,
-        repostOf: null,
-        author: authorMini(req.user),
-        likeCount: 0,
-        replyCount: 0,
-        repostCount: 0,
-        liked: false,
-        reposted: false,
-        bookmarked: false,
-      },
-    });
+    const hydrated = await Post.findById(post._id).populate(postPopulate);
+    const [dto] = await presentPosts([hydrated || post], String(req.user!._id), savedPostIds(req.user));
+    res.status(201).json({ post: dto });
 
     try {
       if (replyParent) {
@@ -140,9 +134,22 @@ router.post(
         });
       }
 
+      if (quoteOriginal) {
+        quoteOriginal.repostCount = (quoteOriginal.repostCount || 0) + 1;
+        await quoteOriginal.save();
+        await createNotification({
+          recipient: quoteOriginal.author,
+          actor: req.user!._id,
+          type: "repost",
+          text: `${req.user!.displayName} quoted your post`,
+          link: `/post/${post.id}`,
+        });
+      }
+
       await notifyMentions(body.text, req.user, `/post/${post.id}`, [
         String(req.user!._id),
         replyParent ? String(replyParent.author) : "",
+        quoteOriginal ? String(quoteOriginal.author) : "",
       ]);
     } catch {
       // The post is already saved and shown. A failed notice should not undo it.

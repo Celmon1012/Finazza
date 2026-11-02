@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { Bookmark, Heart, ImagePlus, MessageCircle, Repeat2, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Bookmark, Heart, ImagePlus, MessageCircle, PenLine, Repeat2, Trash2, X } from "lucide-react";
 import { ApiError, api, mediaUrl } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import type { Post } from "@/lib/types";
@@ -137,19 +137,32 @@ export function Composer({
   );
 }
 
-function Embedded({ post }: { post: NonNullable<Post["repostOf"]> }) {
+function Embedded({ post, className }: { post: NonNullable<Post["repostOf"]>; className?: string }) {
   if (!post.author) return null;
   return (
-    <Link href={`/post/${post.id}`} className="mt-3 block rounded-2xl border border-neutral-200 p-3 hover:bg-neutral-50">
-      <div className="mb-1 flex items-center gap-2 text-sm">
+    <Link href={`/post/${post.id}`} className={cn("mt-3 block rounded-2xl border border-[#f0e6d8] bg-white/70 p-3 hover:bg-white", className)}>
+      <div className="mb-1 flex flex-wrap items-center gap-2 text-sm">
         <Avatar name={post.author.displayName} url={post.author.avatarUrl} size={20} />
         <span className="font-semibold">{post.author.displayName}</span>
         <span className="text-neutral-500">@{post.author.username}</span>
+        <span className="text-neutral-400">· {timeAgo(post.createdAt)}</span>
       </div>
-      <RichText text={post.text} />
+      {post.text && <RichText text={post.text} className="whitespace-pre-wrap break-words text-[15px] leading-6" />}
       <AttachmentGrid files={post.attachments} />
     </Link>
   );
+}
+
+function quoteSource(post: Post) {
+  const pure = Boolean(post.repostOf && !post.text && post.attachments.length === 0);
+  if (pure && post.repostOf) return post.repostOf;
+  return {
+    id: post.id,
+    text: post.text,
+    createdAt: post.createdAt,
+    attachments: post.attachments,
+    author: post.author,
+  };
 }
 
 function AttachmentGrid({ files }: { files: { url: string }[] }) {
@@ -186,11 +199,34 @@ export function PostCard({
   const [bookmarked, setBookmarked] = useState(post.bookmarked);
   const [hidden, setHidden] = useState(false);
   const [removing, setRemoving] = useState(false);
+  const [repostMenu, setRepostMenu] = useState(false);
+  const [quoteOpen, setQuoteOpen] = useState(false);
+  const [quoteText, setQuoteText] = useState("");
+  const [quoteBusy, setQuoteBusy] = useState(false);
+  const [quoteError, setQuoteError] = useState("");
+  const menuRef = useRef<HTMLDivElement>(null);
   const author = post.author;
+
+  useEffect(() => {
+    if (!repostMenu) return;
+    function onPointer(event: MouseEvent) {
+      if (!menuRef.current?.contains(event.target as Node)) setRepostMenu(false);
+    }
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setRepostMenu(false);
+    }
+    document.addEventListener("mousedown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [repostMenu]);
 
   if (hidden || !author) return null;
   const pending = post.id.startsWith("pending-");
   const pureRepost = Boolean(post.repostOf && !post.text && post.attachments.length === 0);
+  const source = quoteSource(post);
 
   async function toggleLike() {
     if (post.id.startsWith("pending-")) return;
@@ -207,8 +243,9 @@ export function PostCard({
     }
   }
 
-  async function toggleRepost() {
+  async function plainRepost() {
     if (post.id.startsWith("pending-")) return;
+    setRepostMenu(false);
     const previous = { reposted, repostCount };
     setReposted(!reposted);
     setRepostCount(Math.max(0, repostCount + (reposted ? -1 : 1)));
@@ -221,6 +258,32 @@ export function PostCard({
     } catch {
       setReposted(previous.reposted);
       setRepostCount(previous.repostCount);
+    }
+  }
+
+  async function submitQuote(event: React.FormEvent) {
+    event.preventDefault();
+    const draft = quoteText.trim();
+    if (!draft) {
+      setQuoteError("Add a short take to quote this post.");
+      return;
+    }
+    setQuoteBusy(true);
+    setQuoteError("");
+    try {
+      await api<{ post: Post }>("/api/posts", {
+        method: "POST",
+        body: JSON.stringify({ text: draft, attachments: [], repostOf: source.id }),
+      });
+      setQuoteText("");
+      setQuoteOpen(false);
+      setReposted(true);
+      setRepostCount((count) => count + 1);
+      onChange?.();
+    } catch (err) {
+      setQuoteError(err instanceof Error ? err.message : "Could not post the quote");
+    } finally {
+      setQuoteBusy(false);
     }
   }
 
@@ -279,11 +342,14 @@ export function PostCard({
           <AttachmentGrid files={post.attachments} />
           {post.repostOf && <Embedded post={post.repostOf} />}
           <div className="mt-3 flex max-w-md items-center justify-between text-neutral-500">
-            {/* Pure reposts are boost-only — no comments on the repost itself. */}
             {pureRepost ? (
-              <span className="inline-flex items-center gap-1.5 text-sm text-neutral-300" title="Reposts cannot be commented on" aria-hidden>
+              <Link
+                href={`/post/${post.repostOf!.id}`}
+                className="inline-flex items-center gap-1.5 text-sm hover:text-[#c56a00]"
+                title="Comment on the original"
+              >
                 <MessageCircle size={16} />
-              </span>
+              </Link>
             ) : pending ? (
               <span className="inline-flex items-center gap-1.5 text-sm">
                 <MessageCircle size={16} /> {post.replyCount || ""}
@@ -293,9 +359,48 @@ export function PostCard({
                 <MessageCircle size={16} /> {post.replyCount || ""}
               </Link>
             )}
-            <button type="button" onClick={toggleRepost} className={cn("inline-flex items-center gap-1.5 text-sm hover:text-[#3dd68c]", reposted && "text-[#3dd68c]")}>
-              <Repeat2 size={16} /> {repostCount || ""}
-            </button>
+            <div className="relative" ref={menuRef}>
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => setRepostMenu((open) => !open)}
+                aria-label="Repost or quote"
+                aria-expanded={repostMenu}
+                className={cn("inline-flex items-center gap-1.5 text-sm hover:text-[#3dd68c]", reposted && "text-[#3dd68c]")}
+              >
+                <Repeat2 size={16} /> {repostCount || ""}
+              </button>
+              {repostMenu && (
+                <div className="absolute bottom-full left-1/2 z-30 mb-2 w-56 -translate-x-1/2 overflow-hidden rounded-2xl border border-[#f0e6d8] bg-white py-1 shadow-[0_18px_40px_-24px_rgba(28,20,12,0.45)]">
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm hover:bg-[#fff8ee]"
+                    onClick={plainRepost}
+                  >
+                    <Repeat2 size={16} className="text-[#3dd68c]" />
+                    <span>
+                      <span className="block font-semibold">{reposted ? "Undo repost" : "Repost"}</span>
+                      <span className="block text-xs text-neutral-500">{reposted ? "Remove from your timeline" : "Share as it is"}</span>
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm hover:bg-[#fff8ee]"
+                    onClick={() => {
+                      setRepostMenu(false);
+                      setQuoteOpen(true);
+                      setQuoteError("");
+                    }}
+                  >
+                    <PenLine size={16} className="text-[#c56a00]" />
+                    <span>
+                      <span className="block font-semibold">Quote</span>
+                      <span className="block text-xs text-neutral-500">Add your take above it</span>
+                    </span>
+                  </button>
+                </div>
+              )}
+            </div>
             <button type="button" onClick={toggleLike} className={cn("inline-flex items-center gap-1.5 text-sm hover:text-[#ff5d73]", liked && "text-[#ff5d73]")}>
               <Heart size={16} fill={liked ? "currentColor" : "none"} /> {likeCount || ""}
             </button>
@@ -318,6 +423,47 @@ export function PostCard({
           </div>
         </div>
       </div>
+
+      {quoteOpen && source.author && (
+        <div className="fixed inset-0 z-50 grid place-items-end bg-black/50 p-0 sm:place-items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Quote post">
+          <button type="button" className="absolute inset-0" aria-label="Close" onClick={() => !quoteBusy && setQuoteOpen(false)} />
+          <form
+            onSubmit={submitQuote}
+            className="relative z-10 flex max-h-[92dvh] w-full max-w-xl flex-col rounded-t-[28px] border border-[#f0e6d8] bg-[#fffaf3] shadow-[0_-24px_60px_-28px_rgba(28,20,12,0.45)] sm:rounded-[28px]"
+          >
+            <div className="flex items-center justify-between border-b border-[#f0e6d8] px-4 py-3">
+              <button type="button" className="rounded-full p-1.5 text-neutral-500 hover:bg-white" aria-label="Close" disabled={quoteBusy} onClick={() => setQuoteOpen(false)}>
+                <X size={18} />
+              </button>
+              <h2 className="text-base font-semibold">Quote</h2>
+              <Button type="submit" disabled={quoteBusy || !quoteText.trim()} className="min-w-[5.5rem]">
+                {quoteBusy ? "Posting…" : "Quote"}
+              </Button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+              <div className="flex gap-3">
+                <Avatar name={user?.displayName || "You"} url={user?.avatarUrl} />
+                <div className="min-w-0 flex-1">
+                  <textarea
+                    value={quoteText}
+                    maxLength={500}
+                    autoFocus
+                    onChange={(event) => setQuoteText(event.target.value)}
+                    placeholder="Add a comment"
+                    className="min-h-24 w-full resize-none bg-transparent text-lg placeholder:text-neutral-400 focus:outline-none"
+                  />
+                  <Embedded post={source as NonNullable<Post["repostOf"]>} className="mt-2" />
+                  <div className="mt-3 flex items-center justify-between gap-3 text-xs text-neutral-500">
+                    <span>Your comment sits above their post. Everyone can reply to your quote.</span>
+                    <span className={cn(quoteText.length >= 450 && "text-[#ff5d73]")}>{quoteText.length}/500</span>
+                  </div>
+                  {quoteError && <p className="mt-2 text-sm text-[#ff5d73]">{quoteError}</p>}
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+      )}
     </article>
   );
 }
