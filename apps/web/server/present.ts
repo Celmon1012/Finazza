@@ -1,5 +1,5 @@
 import { PROOF_LABEL } from "./config.js";
-import { Like, Proof, Repost } from "./models.js";
+import { Like, Post, Proof, Repost } from "./models.js";
 import { comparisonNote, snapshotLabel } from "./social.js";
 import { isAudioUrl } from "./storage.js";
 
@@ -60,37 +60,45 @@ export function savedPostIds(user: any) {
 export async function presentPosts(posts: any[], viewerId?: string, savedIds?: Set<string>) {
   const visible = posts.filter((post) => post && !post.deletedAt && !(post.repostOf && post.repostOf.deletedAt));
   const ids = visible.map((post) => post._id);
-  const [likes, reposts] = await Promise.all([
+  const originalIds = visible.map((post) => post.repostOf?._id || post.repostOf).filter(Boolean);
+  const [likes, reposts, replyCounts] = await Promise.all([
     viewerId ? Like.find({ user: viewerId, post: { $in: ids } }).select("post") : [],
     viewerId ? Repost.find({ user: viewerId, post: { $in: ids } }).select("post") : [],
+    // Live count from reply rows — stored reply_count can lag or drift.
+    Post.countRepliesByParents([...ids, ...originalIds].map(String)),
   ]);
   const liked = new Set(likes.map((row) => String(row.post)));
   const reposted = new Set(reposts.map((row) => String(row.post)));
 
-  return visible.map((post) => ({
-    id: String(post._id),
-    text: post.text || "",
-    createdAt: post.createdAt,
-    attachments: (post.attachments || []).map((file: any) => ({ url: file.url, kind: file.kind || "image" })),
-    replyTo: post.replyTo ? String(post.replyTo._id || post.replyTo) : null,
-    replyToAuthor: post.replyTo?.author?.username ? { username: post.replyTo.author.username } : null,
-    repostOf: post.repostOf
-      ? {
-          id: String(post.repostOf._id),
-          text: post.repostOf.text || "",
-          createdAt: post.repostOf.createdAt,
-          attachments: (post.repostOf.attachments || []).map((file: any) => ({ url: file.url, kind: "image" })),
-          author: authorMini(post.repostOf.author),
-        }
-      : null,
-    author: authorMini(post.author),
-    likeCount: post.likeCount || 0,
-    replyCount: post.replyCount || 0,
-    repostCount: post.repostCount || 0,
-    liked: liked.has(String(post._id)),
-    reposted: reposted.has(String(post._id)),
-    bookmarked: Boolean(savedIds?.has(String(post._id))),
-  }));
+  return visible.map((post) => {
+    const id = String(post._id);
+    const originalId = post.repostOf ? String(post.repostOf._id || post.repostOf) : null;
+    return {
+      id,
+      text: post.text || "",
+      createdAt: post.createdAt,
+      attachments: (post.attachments || []).map((file: any) => ({ url: file.url, kind: file.kind || "image" })),
+      replyTo: post.replyTo ? String(post.replyTo._id || post.replyTo) : null,
+      replyToAuthor: post.replyTo?.author?.username ? { username: post.replyTo.author.username } : null,
+      repostOf: post.repostOf
+        ? {
+            id: originalId!,
+            text: post.repostOf.text || "",
+            createdAt: post.repostOf.createdAt,
+            attachments: (post.repostOf.attachments || []).map((file: any) => ({ url: file.url, kind: "image" })),
+            author: authorMini(post.repostOf.author),
+            replyCount: replyCounts.get(originalId!) || 0,
+          }
+        : null,
+      author: authorMini(post.author),
+      likeCount: post.likeCount || 0,
+      replyCount: replyCounts.get(id) || 0,
+      repostCount: post.repostCount || 0,
+      liked: liked.has(id),
+      reposted: reposted.has(id),
+      bookmarked: Boolean(savedIds?.has(id)),
+    };
+  });
 }
 
 export const postPopulate = [

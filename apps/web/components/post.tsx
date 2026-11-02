@@ -379,18 +379,21 @@ export function PostCard({
             {pureRepost ? (
               <Link
                 href={`/post/${post.repostOf!.id}`}
-                className="inline-flex items-center gap-1.5 text-sm hover:text-[#c56a00]"
+                className="inline-flex min-w-[3rem] items-center gap-1.5 text-sm tabular-nums hover:text-[#c56a00]"
                 title={t("post.commentOnOriginal")}
               >
                 <MessageCircle size={16} />
+                <span>{post.repostOf?.replyCount ? post.repostOf.replyCount : ""}</span>
               </Link>
             ) : pending ? (
-              <span className="inline-flex items-center gap-1.5 text-sm">
-                <MessageCircle size={16} /> {post.replyCount || ""}
+              <span className="inline-flex min-w-[3rem] items-center gap-1.5 text-sm tabular-nums">
+                <MessageCircle size={16} />
+                <span>{post.replyCount ? post.replyCount : ""}</span>
               </span>
             ) : (
-              <Link href={`/post/${post.id}`} className="inline-flex items-center gap-1.5 text-sm hover:text-[#c56a00]">
-                <MessageCircle size={16} /> {post.replyCount || ""}
+              <Link href={`/post/${post.id}`} className="inline-flex min-w-[3rem] items-center gap-1.5 text-sm tabular-nums hover:text-[#c56a00]">
+                <MessageCircle size={16} />
+                <span>{post.replyCount ? post.replyCount : ""}</span>
               </Link>
             )}
             <div className="relative" ref={menuRef}>

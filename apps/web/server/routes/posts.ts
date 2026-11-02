@@ -118,14 +118,22 @@ router.post(
       repostOf: body.repostOf || null,
     });
 
+    // Bump counters before responding so the feed sees +1 immediately.
+    if (replyParent) {
+      replyParent.replyCount = (replyParent.replyCount || 0) + 1;
+      await replyParent.save();
+    }
+    if (quoteOriginal) {
+      quoteOriginal.repostCount = (quoteOriginal.repostCount || 0) + 1;
+      await quoteOriginal.save();
+    }
+
     const hydrated = await Post.findById(post._id).populate(postPopulate);
     const [dto] = await presentPosts([hydrated || post], String(req.user!._id), savedPostIds(req.user));
     res.status(201).json({ post: dto });
 
     try {
       if (replyParent) {
-        replyParent.replyCount += 1;
-        await replyParent.save();
         await createNotification({
           recipient: replyParent.author,
           actor: req.user!._id,
@@ -136,8 +144,6 @@ router.post(
       }
 
       if (quoteOriginal) {
-        quoteOriginal.repostCount = (quoteOriginal.repostCount || 0) + 1;
-        await quoteOriginal.save();
         await createNotification({
           recipient: quoteOriginal.author,
           actor: req.user!._id,
@@ -209,6 +215,13 @@ router.delete(
     if (!post.deletedAt) {
       post.deletedAt = new Date();
       await post.save();
+      if (post.replyTo) {
+        const parent = await Post.findById(post.replyTo);
+        if (parent && !parent.deletedAt) {
+          parent.replyCount = Math.max(0, (parent.replyCount || 0) - 1);
+          await parent.save();
+        }
+      }
     }
     res.json({ ok: true });
   }),

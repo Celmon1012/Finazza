@@ -529,6 +529,19 @@ async function insertPost(input: any) {
   return mapPost(data);
 }
 
+async function countRepliesByParents(parentIds: string[]) {
+  const ids = [...new Set(parentIds.map(idOf).filter(Boolean))];
+  const counts = new Map<string, number>();
+  if (!ids.length) return counts;
+  const { data, error } = await table("posts").select("reply_to").in("reply_to", ids).is("deleted_at", null);
+  fail(error);
+  for (const row of data || []) {
+    const parentId = String(row.reply_to);
+    counts.set(parentId, (counts.get(parentId) || 0) + 1);
+  }
+  return counts;
+}
+
 export const Post = {
   find(filter: any = {}) {
     return listQuery((opts) => loadPosts(filter, opts));
@@ -542,6 +555,7 @@ export const Post = {
   async create(input: any) {
     return insertPost(input);
   },
+  countRepliesByParents,
   async updateOne(filter: any, patch: any) {
     if (patch.$inc?.repostCount) {
       const post = await loadPosts({ _id: idOf(filter._id) }, { limit: 1 }).then((rows) => rows[0]);
