@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/shell";
 import { Avatar, Button, Empty, Spinner } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { formatNotificationText } from "@/lib/i18n/format";
 import { useI18n } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n";
 import type { AppNotification } from "@/lib/types";
@@ -65,7 +66,7 @@ export default function NotificationsPage() {
             <Link href={item.link} onClick={() => open(item)} className="flex gap-3 px-4 py-3">
               <Avatar name={item.actor?.displayName || "F"} url={item.actor?.avatarUrl} size={36} />
               <span>
-                <span className="block text-sm">{item.text}</span>
+                <span className="block text-sm">{formatNotificationText(item, t)}</span>
                 <span className="text-xs text-neutral-500">
                   {t(typeKeys[item.type] || "notifications.type.chat")} · {timeAgo(item.createdAt)}
                 </span>

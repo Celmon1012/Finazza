@@ -26,6 +26,7 @@ import {
 import { api, mediaUrl } from "@/lib/api";
 import { cachedMessages, fetchMessages, prefetchMessages, rememberMessages } from "@/lib/chat-cache";
 import { getSocket, useAuth } from "@/lib/auth";
+import { formatChatPreview } from "@/lib/i18n/format";
 import { useI18n } from "@/lib/i18n/provider";
 import type { ChatMessage, Conversation, PublicUser } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -560,7 +561,7 @@ export function ChatView() {
                         </div>
                         <div className="flex items-center justify-between gap-2">
                           <p className={cn("truncate text-sm", count > 0 ? "font-medium text-neutral-900" : "text-neutral-500")}>
-                            {item.lastMessageText || item.description || t("chat.noMessagesYet")}
+                            {formatChatPreview(item.lastMessageText, t) || item.description || t("chat.noMessagesYet")}
                           </p>
                           {count > 0 && <span className="grid min-w-5 shrink-0 place-items-center rounded-full bg-[#ff7a18] px-1.5 text-[11px] font-semibold leading-5 text-black">{count > 99 ? "99+" : count}</span>}
                         </div>

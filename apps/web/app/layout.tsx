@@ -8,7 +8,7 @@ const sans = Outfit({ subsets: ["latin"], variable: "--font-sans" });
 const serif = Instrument_Serif({ subsets: ["latin"], weight: "400", variable: "--font-serif" });
 
 const siteUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "https://finazza.vercel.app";
-const description = "Investment social network for stocks, ETFs, commodities, and collectibles.";
+const description = "Investment social network for stocks, ETFs, commodities, and collectibles. 投資社交平台：股票、ETF、商品與收藏品。";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),

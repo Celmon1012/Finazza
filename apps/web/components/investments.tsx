@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Camera, ChevronDown } from "lucide-react";
 import { api, mediaUrl } from "@/lib/api";
+import { formatComparisonNote, formatProofLabel, formatSnapshotLabel } from "@/lib/i18n/format";
 import { useI18n } from "@/lib/i18n/provider";
 import type { Investment } from "@/lib/types";
 import { dateInput, money, parseBuyPrice, percent } from "@/lib/utils";
@@ -248,7 +249,7 @@ export function InvestmentCard({
             {item.assetClass}
             {item.category ? ` · ${item.category}` : ""} · {item.recordType === "trade" ? t("portfolio.trade") : t("portfolio.holding")}
           </p>
-          <h3 className="mt-1 text-lg font-semibold">{item.snapshotLabel}</h3>
+          <h3 className="mt-1 text-lg font-semibold">{formatSnapshotLabel(item, t)}</h3>
         </div>
         {item.returnPercent != null && (
           <span className={item.returnPercent >= 0 ? "text-[#3dd68c]" : "text-[#ff5d73]"}>{percent(item.returnPercent)}</span>
@@ -271,7 +272,7 @@ export function InvestmentCard({
       </dl>
       {item.notes && <p className="mt-2 text-sm text-neutral-700">{item.notes}</p>}
       {item.returnBasis && <p className="mt-2 text-xs text-neutral-500">{item.returnBasis}</p>}
-      {item.comparisonNote && <p className="mt-1 text-xs text-[#c56a00]">{item.comparisonNote}</p>}
+      {item.comparisonNote && <p className="mt-1 text-xs text-[#c56a00]">{formatComparisonNote(item, t)}</p>}
 
       <div className="mt-3 rounded-xl border border-[#ffc14d]/30 bg-[#ffc14d]/5 p-3">
         {item.proof ? (
@@ -287,7 +288,7 @@ export function InvestmentCard({
             </button>
             {proofOpen && (
               <div className="mt-3 space-y-2">
-                <p className="text-sm font-medium text-[#c56a00]">{item.proof.label}</p>
+                <p className="text-sm font-medium text-[#c56a00]">{formatProofLabel(item.proof.label, t)}</p>
                 {item.proof.mimeType.includes("pdf") ? (
                   <a className="text-sm underline" href={mediaUrl(item.proof.url)} target="_blank" rel="noreferrer">
                     {t("portfolio.viewPdf")}
@@ -469,7 +470,7 @@ export function PortfolioBoard({
                   setPickingProof(false);
                 }}
               >
-                {item.snapshotLabel}
+                {formatSnapshotLabel(item, t)}
               </button>
             ))}
           </div>

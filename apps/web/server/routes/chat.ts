@@ -243,7 +243,7 @@ router.post(
     });
     message.author = req.user;
     convo.lastMessageAt = message.createdAt;
-    convo.lastMessageText = body.text || (body.audioUrl ? "Sent a voice message" : "Sent an image");
+    convo.lastMessageText = body.text || (body.audioUrl ? "__voice__" : "__image__");
     await Promise.all([
       convo.save(),
       ReadState.findOneAndUpdate(

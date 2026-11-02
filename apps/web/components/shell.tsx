@@ -7,6 +7,7 @@ import { Bell, Bookmark, Compass, Home, LogOut, MessageCircle, PieChart, Setting
 import { api } from "@/lib/api";
 import { prefetchMessages } from "@/lib/chat-cache";
 import { useAuth } from "@/lib/auth";
+import { formatSnapshotLabel } from "@/lib/i18n/format";
 import { useI18n } from "@/lib/i18n/provider";
 import type { Conversation, Investment } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -242,19 +243,7 @@ function RightRail() {
           <ul className="mt-3 space-y-3">
             {items.map((item) => (
               <li key={item.id}>
-                <p className="text-sm">
-                  {item.recordType === "trade" && item.returnPercent != null
-                    ? t("portfolio.tradeLabel", {
-                        name: item.assetName,
-                        change: `${item.returnPercent > 0 ? "+" : ""}${Math.round(item.returnPercent)}%`,
-                      })
-                    : item.recordType === "holding" && item.assetClass !== "commodity"
-                      ? t("portfolio.boughtLabel", {
-                          name: item.assetName,
-                          price: `${item.buyPriceApproximate ? "~" : ""}$${item.buyPrice}`,
-                        })
-                      : item.snapshotLabel}
-                </p>
+                <p className="text-sm">{formatSnapshotLabel(item, t)}</p>
                 {item.proof && <p className="text-xs text-[#c56a00]">{t("rail.proofUploaded")}</p>}
               </li>
             ))}

@@ -51,17 +51,17 @@ export default function OpenGraphImage() {
           FINAZZA
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 18, maxWidth: 900 }}>
-          <div style={{ fontSize: 72, lineHeight: 1.05, letterSpacing: -1 }}>Share positions. Show the proof.</div>
+          <div style={{ fontSize: 64, lineHeight: 1.05, letterSpacing: -1 }}>Share positions. Show the proof.</div>
           <div
             style={{
-              fontSize: 30,
+              fontSize: 28,
               lineHeight: 1.35,
               color: "#6b5a45",
-              fontFamily: "Arial, Helvetica, sans-serif",
+              fontFamily: "Arial, Helvetica, 'Noto Sans TC', sans-serif",
               maxWidth: 820,
             }}
           >
-            An investment social network for stocks, ETFs, commodities, and collectibles.
+            分享持倉，出示證明 · Stocks, ETFs, commodities & collectibles
           </div>
         </div>
         <div
