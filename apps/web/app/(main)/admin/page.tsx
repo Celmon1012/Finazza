@@ -175,22 +175,21 @@ function OverviewTab({ onError, onOpen }: { onError: (message: string) => void; 
 const PAGE_SIZE = 10;
 
 function PageBar({ page, total, onPage }: { page: number; total: number; onPage: (page: number) => void }) {
+  const { t } = useI18n();
   if (total <= 0) return null;
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const start = (page - 1) * PAGE_SIZE + 1;
+  const end = Math.min(page * PAGE_SIZE, total);
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#f0e6d8] px-4 py-3">
-      <p className="text-xs text-neutral-500">
-        {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} of {total}
-      </p>
+      <p className="text-xs text-neutral-500">{t("admin.rangeOf", { start, end, total })}</p>
       <div className="flex items-center gap-2">
         <Button type="button" variant="outline" disabled={page <= 1} onClick={() => onPage(page - 1)}>
-          Previous
+          {t("admin.previous")}
         </Button>
-        <span className="text-xs text-neutral-500">
-          Page {page} of {pages}
-        </span>
+        <span className="text-xs text-neutral-500">{t("admin.pageOf", { page, pages })}</span>
         <Button type="button" variant="outline" disabled={page >= pages} onClick={() => onPage(page + 1)}>
-          Next
+          {t("admin.next")}
         </Button>
       </div>
     </div>
@@ -198,6 +197,7 @@ function PageBar({ page, total, onPage }: { page: number; total: number; onPage:
 }
 
 function PeopleTab({ onError }: { onError: (message: string) => void }) {
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -242,13 +242,13 @@ function PeopleTab({ onError }: { onError: (message: string) => void }) {
           load(query, 1).catch(() => undefined);
         }}
       >
-        <input className={inputClass} placeholder="Search name, username, or email" value={query} onChange={(event) => setQuery(event.target.value)} />
-        <Button type="submit">Search</Button>
+        <input className={inputClass} placeholder={t("admin.searchPeople")} value={query} onChange={(event) => setQuery(event.target.value)} />
+        <Button type="submit">{t("common.search")}</Button>
       </form>
       {!users ? (
-        <Spinner label="Loading people" />
+        <Spinner label={t("admin.loadingPeople")} />
       ) : users.length === 0 ? (
-        <Empty title="No people found" body="Try another name or email." />
+        <Empty title={t("admin.noPeopleTitle")} body={t("admin.noPeopleBody")} />
       ) : (
         <ul>
           {users.map((person) => (
@@ -259,16 +259,16 @@ function PeopleTab({ onError }: { onError: (message: string) => void }) {
                     {person.displayName}
                   </Link>{" "}
                   <span className="font-normal text-neutral-500">@{person.username}</span>
-                  {person.role === "admin" && <span className="ml-2 rounded-full bg-[#fff4e0] px-2 py-0.5 text-xs font-medium text-[#a35400]">Admin</span>}
-                  {person.suspended && <span className="ml-2 rounded-full bg-[#fff0f2] px-2 py-0.5 text-xs font-medium text-[#d6334d]">Suspended</span>}
+                  {person.role === "admin" && <span className="ml-2 rounded-full bg-[#fff4e0] px-2 py-0.5 text-xs font-medium text-[#a35400]">{t("admin.title")}</span>}
+                  {person.suspended && <span className="ml-2 rounded-full bg-[#fff0f2] px-2 py-0.5 text-xs font-medium text-[#d6334d]">{t("admin.suspend")}</span>}
                 </p>
                 <p className="truncate text-xs text-neutral-500">
-                  {person.email} · joined {timeAgo(person.createdAt)}
+                  {person.email} · {timeAgo(person.createdAt)}
                 </p>
               </div>
               {person.role !== "admin" && (
                 <Button variant={person.suspended ? "outline" : "danger"} disabled={busy === person.id} onClick={() => setSuspended(person, !person.suspended)}>
-                  {person.suspended ? "Restore" : "Suspend"}
+                  {person.suspended ? t("admin.restore") : t("admin.suspend")}
                 </Button>
               )}
             </li>
@@ -281,6 +281,7 @@ function PeopleTab({ onError }: { onError: (message: string) => void }) {
 }
 
 function PostsTab({ onError }: { onError: (message: string) => void }) {
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -305,7 +306,7 @@ function PostsTab({ onError }: { onError: (message: string) => void }) {
   }, []);
 
   async function hide(post: AdminPost) {
-    if (!window.confirm("Hide this post from the site?")) return;
+    if (!window.confirm(t("admin.hidePostConfirm"))) return;
     setBusy(post.id);
     try {
       await api(`/api/admin/posts/${post.id}/hide`, { method: "POST" });
@@ -326,13 +327,13 @@ function PostsTab({ onError }: { onError: (message: string) => void }) {
           load(query, 1).catch(() => undefined);
         }}
       >
-        <input className={inputClass} placeholder="Search post text" value={query} onChange={(event) => setQuery(event.target.value)} />
-        <Button type="submit">Search</Button>
+        <input className={inputClass} placeholder={t("admin.searchPosts")} value={query} onChange={(event) => setQuery(event.target.value)} />
+        <Button type="submit">{t("common.search")}</Button>
       </form>
       {!posts ? (
-        <Spinner label="Loading posts" />
+        <Spinner label={t("admin.loadingPosts")} />
       ) : posts.length === 0 ? (
-        <Empty title="No posts" body="Nothing matched this search." />
+        <Empty title={t("admin.noPostsTitle")} body={t("admin.noPostsBody")} />
       ) : (
         <ul>
           {posts.map((post) => (
@@ -344,14 +345,14 @@ function PostsTab({ onError }: { onError: (message: string) => void }) {
                       {post.author.displayName}
                     </Link>
                   ) : (
-                    "Deleted user"
+                    t("admin.deletedUser")
                   )}{" "}
-                  · {timeAgo(post.createdAt)} · {post.likeCount} likes · {post.replyCount} replies
+                  · {timeAgo(post.createdAt)} · {post.likeCount} · {post.replyCount}
                 </p>
-                <p className="mt-1 whitespace-pre-wrap text-sm">{post.text || "Image post"}</p>
+                <p className="mt-1 whitespace-pre-wrap text-sm">{post.text || t("admin.imagePost")}</p>
               </div>
               <Button variant="danger" disabled={busy === post.id} onClick={() => hide(post)}>
-                Hide
+                {t("admin.hide")}
               </Button>
             </li>
           ))}
@@ -363,6 +364,7 @@ function PostsTab({ onError }: { onError: (message: string) => void }) {
 }
 
 function RoomsTab({ onError }: { onError: (message: string) => void }) {
+  const { t } = useI18n();
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [rooms, setRooms] = useState<AdminRoom[] | null>(null);
@@ -425,7 +427,7 @@ function RoomsTab({ onError }: { onError: (message: string) => void }) {
   }
 
   async function removeRoom(room: AdminRoom) {
-    if (!window.confirm(`Delete #${room.slug}? Its messages will be removed.`)) return;
+    if (!window.confirm(t("admin.deleteRoomConfirm", { slug: room.slug || "" }))) return;
     setBusy(room.id);
     try {
       await api(`/api/admin/rooms/${room.id}`, { method: "DELETE" });
@@ -442,13 +444,13 @@ function RoomsTab({ onError }: { onError: (message: string) => void }) {
     <div>
       <div className="flex justify-end border-b border-[#f0e6d8] px-4 py-3">
         <Button type="button" onClick={() => setCreating(true)}>
-          Create room
+          {t("admin.createRoom")}
         </Button>
       </div>
       {!rooms ? (
-        <Spinner label="Loading rooms" />
+        <Spinner label={t("admin.loadingRooms")} />
       ) : rooms.length === 0 ? (
-        <Empty title="No topic rooms" body="Create a room to give members a place to talk." />
+        <Empty title={t("admin.noRoomsTitle")} body={t("admin.noRoomsBody")} />
       ) : (
         <ul>
           {rooms.map((room) => (
@@ -460,10 +462,10 @@ function RoomsTab({ onError }: { onError: (message: string) => void }) {
                   <input className={inputClass} value={editing.description} onChange={(event) => setEditing({ ...editing, description: event.target.value })} />
                   <div className="flex gap-2">
                     <Button type="submit" disabled={busy === room.id}>
-                      Save
+                      {t("common.save")}
                     </Button>
                     <Button type="button" variant="outline" onClick={() => setEditing(null)}>
-                      Cancel
+                      {t("common.cancel")}
                     </Button>
                   </div>
                 </form>
@@ -472,13 +474,13 @@ function RoomsTab({ onError }: { onError: (message: string) => void }) {
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold">#{room.slug}</p>
                     <p className="text-sm">{room.name}</p>
-                    <p className="text-xs text-neutral-500">{room.description || "No description"}</p>
+                    <p className="text-xs text-neutral-500">{room.description || t("admin.noDescription")}</p>
                   </div>
                   <Button variant="outline" onClick={() => setEditing(room)}>
-                    Edit
+                    {t("common.edit")}
                   </Button>
                   <Button variant="danger" disabled={busy === room.id} onClick={() => removeRoom(room)}>
-                    Delete
+                    {t("common.delete")}
                   </Button>
                 </div>
               )}
@@ -488,13 +490,13 @@ function RoomsTab({ onError }: { onError: (message: string) => void }) {
       )}
       {rooms && <PageBar page={page} total={total} onPage={(next) => load(next).catch(() => undefined)} />}
       {creating && (
-        <Modal title="New topic room" onClose={closeCreate}>
+        <Modal title={t("admin.newRoom")} onClose={closeCreate}>
           <form className="space-y-2" onSubmit={createRoom}>
-            <input className={inputClass} placeholder="Name" value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} required />
+            <input className={inputClass} placeholder={t("settings.displayName")} value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} required />
             <input className={inputClass} placeholder="slug" value={draft.slug} onChange={(event) => setDraft({ ...draft, slug: event.target.value.toLowerCase() })} required />
-            <input className={inputClass} placeholder="Description" value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} />
+            <input className={inputClass} placeholder={t("admin.description")} value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} />
             <Button type="submit" disabled={busy === "create"}>
-              Create room
+              {t("admin.createRoom")}
             </Button>
           </form>
         </Modal>
@@ -504,6 +506,7 @@ function RoomsTab({ onError }: { onError: (message: string) => void }) {
 }
 
 function ReportsTab({ onError }: { onError: (message: string) => void }) {
+  const { t } = useI18n();
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [reports, setReports] = useState<Report[] | null>(null);
@@ -538,9 +541,9 @@ function ReportsTab({ onError }: { onError: (message: string) => void }) {
   return (
     <div>
       {!reports ? (
-        <Spinner label="Loading reports" />
+        <Spinner label={t("admin.loadingReports")} />
       ) : reports.length === 0 ? (
-        <Empty title="No reports" body="Reports from members will show up here." />
+        <Empty title={t("admin.noReportsTitle")} body={t("admin.noReportsBody")} />
       ) : (
         <ul>
           {reports.map((report) => (
@@ -549,19 +552,19 @@ function ReportsTab({ onError }: { onError: (message: string) => void }) {
                 <span className="font-semibold">{report.reason}</span> · {report.targetType} · {report.status}
               </p>
               <p className="text-neutral-500">
-                {report.reporter?.displayName || "Someone"} · {timeAgo(report.createdAt)}
+                {report.reporter?.displayName || t("admin.someone")} · {timeAgo(report.createdAt)}
               </p>
               {report.details && <p className="mt-1">{report.details}</p>}
               {report.status === "open" && (
                 <div className="mt-2 flex flex-wrap gap-2">
                   <Button variant="ghost" disabled={busy === report.id} onClick={() => act(report.id, "hide")}>
-                    Hide
+                    {t("admin.hide")}
                   </Button>
                   <Button variant="danger" disabled={busy === report.id} onClick={() => act(report.id, "suspend")}>
-                    Hide and suspend
+                    {t("admin.hideAndSuspend")}
                   </Button>
                   <Button variant="outline" disabled={busy === report.id} onClick={() => act(report.id, "dismiss")}>
-                    Dismiss
+                    {t("admin.dismiss")}
                   </Button>
                 </div>
               )}

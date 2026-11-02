@@ -454,12 +454,12 @@ export function ChatView() {
             <div className="flex shrink-0 items-center gap-1.5">
               <button
                 type="button"
-                title="New Group"
+                title={t("chat.newGroup")}
                 className="inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-full border border-neutral-200 px-2.5 text-[13px] font-medium text-neutral-700 transition hover:bg-neutral-100 hover:text-neutral-950 md:w-8 md:justify-center md:px-0"
                 onClick={() => setComposerMode("group")}
               >
                 <Users size={15} className="shrink-0" />
-                <span className="md:sr-only">New Group</span>
+                <span className="md:sr-only">{t("chat.newGroup")}</span>
               </button>
               <button
                 type="button"
@@ -467,15 +467,15 @@ export function ChatView() {
                 onClick={() => setComposerMode("dm")}
               >
                 <SquarePen size={14} />
-                {t("chat.newChat")}
+                {t("chat.newMessage")}
               </button>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-1 rounded-full bg-neutral-100 p-1 text-sm">
             {(
               [
-                ["inbox", t("chat.messages"), unread(inbox)],
-                ["topic", t("admin.rooms"), unread(rooms)],
+                ["inbox", t("chat.inbox"), unread(inbox)],
+                ["topic", t("chat.rooms"), unread(rooms)],
               ] as const
             ).map(([key, label, count]) => (
               <button
@@ -501,7 +501,7 @@ export function ChatView() {
               onChange={(event) => setQuery(event.target.value)}
             />
             {query && (
-              <button type="button" aria-label="Clear search" className="text-neutral-400 hover:text-neutral-700" onClick={() => setQuery("")}>
+              <button type="button" aria-label={t("chat.clearSearch")} className="text-neutral-400 hover:text-neutral-700" onClick={() => setQuery("")}>
                 <X size={15} />
               </button>
             )}
@@ -522,7 +522,7 @@ export function ChatView() {
               </p>
               {!needle && scope === "inbox" && (
                 <Button type="button" className="mt-4" onClick={() => setComposerMode("dm")}>
-                  <SquarePen size={15} /> {t("chat.newChat")}
+                  <SquarePen size={15} /> {t("chat.newMessage")}
                 </Button>
               )}
             </div>
@@ -622,9 +622,9 @@ export function ChatView() {
                 )}
                 <p className="truncate text-xs text-neutral-500">
                   {active?.type === "topic"
-                    ? `Public room${active.description ? ` · ${active.description}` : ""}`
+                    ? `${t("chat.publicRoom")}${active.description ? ` · ${active.description}` : ""}`
                     : active?.type === "group"
-                      ? `${active.memberCount} members`
+                      ? t("chat.membersCount", { count: active.memberCount ?? 0 })
                       : active
                         ? `@${otherMember(active, user?.id)?.username || ""}`
                         : ""}
@@ -636,14 +636,14 @@ export function ChatView() {
                   className="inline-flex h-9 items-center gap-1.5 rounded-full border border-neutral-200 px-3 text-sm text-neutral-700 transition hover:bg-neutral-50"
                   onClick={() => setMembersOpen(true)}
                 >
-                  <Users size={15} /> Group info
+                  <Users size={15} /> {t("chat.groupInfo")}
                 </button>
               )}
               {active?.type === "dm" && messagesReady && messages.length === 0 && (
                 <button
                   type="button"
-                  title="Delete empty chat"
-                  aria-label="Delete empty chat"
+                  title={t("chat.deleteEmpty")}
+                  aria-label={t("chat.deleteEmpty")}
                   className="grid h-9 w-9 place-items-center rounded-full text-neutral-400 transition hover:bg-neutral-100 hover:text-[#ff5d73]"
                   onClick={() => {
                     removeEmpty(active.id).catch((err) => setError(err instanceof Error ? err.message : "Could not delete the chat"));
@@ -740,8 +740,8 @@ export function ChatView() {
                   <span className="hidden text-xs text-neutral-400 sm:inline">max {formatDuration(MAX_VOICE_MS)}</span>
                   <button
                     type="button"
-                    title="Send voice message"
-                    aria-label="Send voice message"
+                    title={t("chat.sendVoice")}
+                    aria-label={t("chat.sendVoice")}
                     className="gold-fill grid h-9 w-9 shrink-0 place-items-center rounded-full shadow-sm transition"
                     onClick={() => stopRecording(false)}
                   >
@@ -774,7 +774,13 @@ export function ChatView() {
                   ref={textarea}
                   rows={1}
                   className="max-h-32 min-h-9 flex-1 resize-none bg-transparent px-1 py-2 text-[15px] leading-5 outline-none placeholder:text-neutral-400 focus-visible:shadow-none"
-                  placeholder={active?.type === "topic" ? `Message #${active.slug}` : active ? `Message ${active.name}` : "Message"}
+                  placeholder={
+                    active?.type === "topic"
+                      ? t("chat.messageRoom", { slug: active.slug || "" })
+                      : active
+                        ? t("chat.messageName", { name: active.name || "" })
+                        : t("chat.messagePlaceholder")
+                  }
                   value={text}
                   maxLength={1000}
                   onChange={(event) => setText(event.target.value)}
@@ -788,8 +794,8 @@ export function ChatView() {
                 {canRecord && !text.trim() ? (
                   <button
                     type="button"
-                    title="Record a voice message"
-                    aria-label="Record a voice message"
+                    title={t("chat.recordVoice")}
+                    aria-label={t("chat.recordVoice")}
                     disabled={uploading}
                     className="gold-fill grid h-9 w-9 shrink-0 place-items-center rounded-full shadow-sm transition disabled:opacity-40"
                     onClick={() => {
@@ -801,7 +807,7 @@ export function ChatView() {
                 ) : (
                   <button
                     type="submit"
-                    aria-label="Send"
+                    aria-label={t("chat.send")}
                     disabled={!canSend}
                     className="gold-fill grid h-9 w-9 shrink-0 place-items-center rounded-full shadow-sm transition disabled:opacity-40"
                   >
@@ -1079,6 +1085,7 @@ function GroupInfo({
   onLeft: () => void;
 }) {
   const { user } = useAuth();
+  const { t } = useI18n();
   const [username, setUsername] = useState("");
   const [name, setName] = useState(conversation.name);
   const [error, setError] = useState("");
@@ -1103,7 +1110,7 @@ function GroupInfo({
       await onChanged();
       if (done) setNotice(done);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      setError(err instanceof Error ? err.message : t("chat.somethingWrong"));
     } finally {
       setBusy(false);
     }
@@ -1121,7 +1128,7 @@ function GroupInfo({
       form.append("files", file);
       const upload = await api<{ files: { url: string }[] }>("/api/uploads", { method: "POST", body: form });
       await api(`/api/conversations/${conversation.id}`, { method: "PATCH", body: JSON.stringify({ avatarUrl: upload.files[0]?.url }) });
-    }, "Group photo updated.");
+    }, t("chat.photoUpdated"));
   }
 
   function setRole(member: Conversation["members"][number], role: "admin" | "member") {
@@ -1129,12 +1136,12 @@ function GroupInfo({
       async () => {
         await api(`/api/conversations/${conversation.id}/members/${member.username}/role`, { method: "POST", body: JSON.stringify({ role }) });
       },
-      role === "admin" ? `${member.displayName} is now an admin.` : `${member.displayName} is no longer an admin.`,
+      role === "admin" ? t("chat.nowAdmin", { name: member.displayName }) : t("chat.noLongerAdmin", { name: member.displayName }),
     );
   }
 
   return (
-    <Modal title="Group info" onClose={onClose}>
+    <Modal title={t("chat.groupInfo")} onClose={onClose}>
       <div className="-mx-1 max-h-[72dvh] overflow-y-auto px-1">
         <div className="flex flex-col items-center text-center">
           <ConversationAvatar convo={conversation} viewerId={user?.id} size={84} />
@@ -1142,7 +1149,7 @@ function GroupInfo({
             <div className="mt-3 flex flex-wrap justify-center gap-2">
               <label className={cn("inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full border border-neutral-300 px-3 text-sm hover:bg-neutral-100", busy && "pointer-events-none opacity-50")}>
                 <Camera size={15} />
-                {conversation.avatarUrl ? "Change group photo" : "Add group photo"}
+                {conversation.avatarUrl ? t("chat.changePhoto") : t("chat.addPhoto")}
                 <input
                   type="file"
                   accept="image/png,image/jpeg,image/webp"
@@ -1160,9 +1167,9 @@ function GroupInfo({
                   type="button"
                   disabled={busy}
                   className="inline-flex h-9 items-center gap-1.5 rounded-full border border-neutral-300 px-3 text-sm text-neutral-700 hover:text-[#d6334d] disabled:opacity-50"
-                  onClick={() => updateGroup({ avatarUrl: null }, "Group photo removed.").catch(() => undefined)}
+                  onClick={() => updateGroup({ avatarUrl: null }, t("chat.photoRemoved")).catch(() => undefined)}
                 >
-                  <X size={15} /> Remove photo
+                  <X size={15} /> {t("chat.removePhoto")}
                 </button>
               )}
             </div>
@@ -1170,7 +1177,8 @@ function GroupInfo({
             <p className="mt-3 text-lg font-semibold">{conversation.name}</p>
           )}
           <p className="mt-1 text-xs text-neutral-500">
-            {conversation.memberCount} members · up to 50{isAdmin ? "" : " · only admins can change the name and photo"}
+            {t("chat.membersMeta", { count: conversation.memberCount ?? 0 })}
+            {isAdmin ? "" : t("chat.adminOnlyMeta")}
           </p>
         </div>
 
@@ -1179,14 +1187,14 @@ function GroupInfo({
             className="mt-5"
             onSubmit={(event) => {
               event.preventDefault();
-              updateGroup({ name: name.trim() }, "Group name saved.").catch(() => undefined);
+              updateGroup({ name: name.trim() }, t("chat.nameSaved")).catch(() => undefined);
             }}
           >
-            <label htmlFor="group-name" className="text-sm text-neutral-600">Group name</label>
+            <label htmlFor="group-name" className="text-sm text-neutral-600">{t("chat.groupName")}</label>
             <div className="mt-1.5 flex gap-2">
               <input id="group-name" className={inputClass} maxLength={40} value={name} onChange={(event) => setName(event.target.value)} required />
               <Button type="submit" className="shrink-0" disabled={busy || !name.trim() || name.trim() === conversation.name}>
-                <Pencil size={14} /> Save
+                <Pencil size={14} /> {t("common.save")}
               </Button>
             </div>
           </form>
@@ -1200,14 +1208,14 @@ function GroupInfo({
               run(async () => {
                 await api(`/api/conversations/${conversation.id}/members`, { method: "POST", body: JSON.stringify({ username }) });
                 setUsername("");
-              }, "Member added.").catch(() => undefined);
+              }, t("chat.memberAdded")).catch(() => undefined);
             }}
           >
-            <label htmlFor="group-add" className="text-sm text-neutral-600">Add a member</label>
+            <label htmlFor="group-add" className="text-sm text-neutral-600">{t("chat.addMember")}</label>
             <div className="mt-1.5 flex gap-2">
               <input id="group-add" className={inputClass} placeholder="@username" value={username} onChange={(event) => setUsername(event.target.value.replace("@", ""))} required />
               <Button type="submit" disabled={busy} className="shrink-0">
-                <UserPlus size={15} /> Add
+                <UserPlus size={15} /> {t("chat.add")}
               </Button>
             </div>
           </form>
@@ -1217,7 +1225,7 @@ function GroupInfo({
           <p className={cn("mt-3 rounded-xl px-3 py-2 text-sm", error ? "bg-[#fff0f2] text-[#d6334d]" : "bg-[#effaf3] text-[#1f7a45]")}>{error || notice}</p>
         )}
 
-        <h3 className="mt-5 text-sm font-semibold text-neutral-800">Members</h3>
+        <h3 className="mt-5 text-sm font-semibold text-neutral-800">{t("chat.members")}</h3>
         <ul className="mt-2 divide-y divide-neutral-100">
           {members.map((member) => {
             const self = member.id === user?.id;
@@ -1227,13 +1235,13 @@ function GroupInfo({
                 <div className="min-w-0 flex-1">
                   <Link href={`/u/${member.username}`} className="flex items-center gap-1.5 text-sm font-semibold hover:underline">
                     <span className="truncate">{member.displayName}</span>
-                    {self && <span className="shrink-0 font-normal text-neutral-500">(you)</span>}
+                    {self && <span className="shrink-0 font-normal text-neutral-500">{t("chat.you")}</span>}
                   </Link>
                   <p className="truncate text-xs text-neutral-500">@{member.username}</p>
                 </div>
                 {member.role === "admin" && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-[#fff4e0] px-2 py-0.5 text-xs font-medium text-[#a35400]">
-                    <ShieldCheck size={12} /> Admin
+                    <ShieldCheck size={12} /> {t("chat.adminBadge")}
                   </span>
                 )}
                 {isAdmin && !self && (
@@ -1244,20 +1252,20 @@ function GroupInfo({
                       className="h-8 rounded-full border border-neutral-200 px-3 text-xs font-medium text-neutral-700 transition hover:bg-neutral-100 disabled:opacity-50"
                       onClick={() => setRole(member, member.role === "admin" ? "member" : "admin").catch(() => undefined)}
                     >
-                      {member.role === "admin" ? "Remove admin" : "Make admin"}
+                      {member.role === "admin" ? t("chat.removeAdmin") : t("chat.makeAdmin")}
                     </button>
                     <button
                       type="button"
                       disabled={busy}
                       className="h-8 rounded-full border border-neutral-200 px-3 text-xs font-medium text-neutral-700 transition hover:border-[#ffc7cf] hover:bg-[#fff5f6] hover:text-[#d6334d] disabled:opacity-50"
                       onClick={() => {
-                        if (!window.confirm(`Remove ${member.displayName} from ${conversation.name}?`)) return;
+                        if (!window.confirm(t("chat.removeMemberConfirm", { name: member.displayName, group: conversation.name }))) return;
                         run(async () => {
                           await api(`/api/conversations/${conversation.id}/members/${member.username}`, { method: "DELETE" });
-                        }, `${member.displayName} was removed.`).catch(() => undefined);
+                        }, t("chat.memberRemoved", { name: member.displayName })).catch(() => undefined);
                       }}
                     >
-                      Remove
+                      {t("chat.remove")}
                     </button>
                   </div>
                 )}
@@ -1273,15 +1281,15 @@ function GroupInfo({
             className="mt-4 w-full text-[#d6334d]"
             disabled={busy}
             onClick={() => {
-              if (!window.confirm(`Leave ${conversation.name}?`)) return;
+              if (!window.confirm(t("chat.leaveConfirm", { name: conversation.name }))) return;
               setBusy(true);
               api(`/api/conversations/${conversation.id}/members/${user.username}`, { method: "DELETE" })
                 .then(onLeft)
-                .catch((err) => setError(err instanceof Error ? err.message : "Could not leave the group"))
+                .catch((err) => setError(err instanceof Error ? err.message : t("chat.leaveFailed")))
                 .finally(() => setBusy(false));
             }}
           >
-            Leave group
+            {t("chat.leaveGroup")}
           </Button>
         )}
       </div>
@@ -1298,6 +1306,7 @@ function StartChat({
   onClose: () => void;
   onCreated: (id: string) => void;
 }) {
+  const { t } = useI18n();
   const [username, setUsername] = useState("");
   const [name, setName] = useState("");
   const [people, setPeople] = useState("");
@@ -1336,14 +1345,14 @@ function StartChat({
       const result = await api<{ conversation: Conversation }>("/api/conversations", { method: "POST", body: JSON.stringify(body) });
       onCreated(result.conversation.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not start the chat");
+      setError(err instanceof Error ? err.message : t("chat.startFailed"));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <Modal title={mode === "dm" ? "New Message" : "New Group"} onClose={onClose}>
+    <Modal title={mode === "dm" ? t("chat.newMessage") : t("chat.newGroup")} onClose={onClose}>
       <form
         className="space-y-3"
         onSubmit={(event) => {
@@ -1351,14 +1360,14 @@ function StartChat({
           open(username).catch(() => undefined);
         }}
       >
-        {mode === "group" && <input className={inputClass} placeholder="Group name" value={name} onChange={(event) => setName(event.target.value)} required />}
+        {mode === "group" && <input className={inputClass} placeholder={t("chat.groupNamePlaceholder")} value={name} onChange={(event) => setName(event.target.value)} required />}
         {mode === "dm" ? (
           <label className="flex items-center gap-2 rounded-xl border border-neutral-200 px-3 transition focus-within:border-[#f0a020] focus-within:ring-4 focus-within:ring-[#f0a020]/10">
             <Search size={16} className="shrink-0 text-neutral-400" />
-            <input className="h-11 w-full bg-transparent text-sm outline-none placeholder:text-neutral-400 focus-visible:shadow-none" placeholder="Search by name or @username" value={username} onChange={(event) => setUsername(event.target.value)} autoFocus required />
+            <input className="h-11 w-full bg-transparent text-sm outline-none placeholder:text-neutral-400 focus-visible:shadow-none" placeholder={t("chat.searchByName")} value={username} onChange={(event) => setUsername(event.target.value)} autoFocus required />
           </label>
         ) : (
-          <input className={inputClass} placeholder="Usernames, separated by commas" value={people} onChange={(event) => setPeople(event.target.value)} />
+          <input className={inputClass} placeholder={t("chat.usernamesHint")} value={people} onChange={(event) => setPeople(event.target.value)} />
         )}
         {mode === "dm" && matches.length > 0 && (
           <ul className="max-h-64 space-y-0.5 overflow-y-auto">
@@ -1380,10 +1389,10 @@ function StartChat({
             ))}
           </ul>
         )}
-        {mode === "group" && <p className="text-xs text-neutral-500">Up to 50 members. People can leave, and the creator can remove members.</p>}
+        {mode === "group" && <p className="text-xs text-neutral-500">{t("chat.groupLimitHint")}</p>}
         {error && <p className="text-sm text-[#ff5d73]">{error}</p>}
         <Button type="submit" disabled={busy} className="w-full">
-          {busy ? "Opening…" : mode === "dm" ? "Open chat" : "Create group"}
+          {busy ? t("chat.opening") : mode === "dm" ? t("chat.openChat") : t("chat.createGroup")}
         </Button>
       </form>
     </Modal>

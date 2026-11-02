@@ -6,17 +6,17 @@ import { Camera, ChevronDown } from "lucide-react";
 import { api, mediaUrl } from "@/lib/api";
 import { useI18n } from "@/lib/i18n/provider";
 import type { Investment } from "@/lib/types";
-import { dateInput, DISCLAIMER, money, parseBuyPrice, percent } from "@/lib/utils";
+import { dateInput, money, parseBuyPrice, percent } from "@/lib/utils";
 import { ProofEditor } from "./proof-editor";
 import { ReportButton } from "./report-button";
 import { Button, Empty, Field, inputClass } from "./ui";
 
-const classes = [
-  ["stock", "Stock"],
-  ["etf", "ETF"],
-  ["commodity", "Commodity"],
-  ["collectible", "Collectible"],
-  ["other", "Other"],
+const classKeys = [
+  ["stock", "portfolio.stock"],
+  ["etf", "portfolio.etf"],
+  ["commodity", "portfolio.commodity"],
+  ["collectible", "portfolio.collectible"],
+  ["other", "portfolio.other"],
 ] as const;
 
 const categories = ["trading card", "coin", "watch", "art", "other"];
@@ -76,7 +76,7 @@ export function InvestmentEditor({
     event.preventDefault();
     const buy = parseBuyPrice(form.buyPrice);
     if (!buy) {
-      setError("Enter a buy price. Put ~ before the number if the amount is approximate.");
+      setError(t("portfolio.buyPriceError"));
       return;
     }
     setBusy(true);
@@ -104,7 +104,7 @@ export function InvestmentEditor({
       });
       onSaved(result.investment);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save the record");
+      setError(err instanceof Error ? err.message : t("portfolio.saveFailed"));
     } finally {
       setBusy(false);
     }
@@ -113,23 +113,23 @@ export function InvestmentEditor({
   return (
     <form onSubmit={submit} className="space-y-3 rounded-2xl border border-neutral-200 p-4">
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Record">
+        <Field label={t("portfolio.record")}>
           <select className={inputClass} value={form.recordType} onChange={(event) => set("recordType", event.target.value as Investment["recordType"])}>
-            <option value="holding">Current holding</option>
-            <option value="trade">Completed trade</option>
+            <option value="holding">{t("portfolio.holding")}</option>
+            <option value="trade">{t("portfolio.trade")}</option>
           </select>
         </Field>
-        <Field label="Asset class">
+        <Field label={t("portfolio.assetClass")}>
           <select className={inputClass} value={form.assetClass} onChange={(event) => set("assetClass", event.target.value as Investment["assetClass"])}>
-            {classes.map(([value, label]) => (
+            {classKeys.map(([value, labelKey]) => (
               <option key={value} value={value}>
-                {label}
+                {t(labelKey)}
               </option>
             ))}
           </select>
         </Field>
         {form.assetClass === "collectible" && (
-          <Field label="Collectible category">
+          <Field label={t("portfolio.category")}>
             <select className={inputClass} value={form.category} onChange={(event) => set("category", event.target.value)}>
               {categories.map((category) => (
                 <option key={category}>{category}</option>
@@ -137,31 +137,30 @@ export function InvestmentEditor({
             </select>
           </Field>
         )}
-        <Field label="Asset name">
-          <input className={inputClass} value={form.assetName} onChange={(event) => set("assetName", event.target.value)} placeholder="AAPL, silver, graded card" required />
+        <Field label={t("portfolio.assetName")}>
+          <input className={inputClass} value={form.assetName} onChange={(event) => set("assetName", event.target.value)} placeholder={t("portfolio.assetNamePlaceholder")} required />
         </Field>
-        <Field label="Quantity">
+        <Field label={t("portfolio.quantity")}>
           <input className={inputClass} inputMode="decimal" value={form.quantity} onChange={(event) => set("quantity", event.target.value)} required />
         </Field>
-        <Field label="Quantity unit">
+        <Field label={t("portfolio.quantityUnit")}>
           <input className={inputClass} list="units" value={form.unit} onChange={(event) => set("unit", event.target.value)} required />
         </Field>
-        <Field label="Buy price (USD)">
-          <input className={inputClass} value={form.buyPrice} onChange={(event) => set("buyPrice", event.target.value)} placeholder="120 or ~120" required />
-          <span className="block text-xs leading-5 text-neutral-500">Use ~ before the amount when it is approximate.</span>
+        <Field label={t("portfolio.buyPrice")}>
+          <input className={inputClass} value={form.buyPrice} onChange={(event) => set("buyPrice", event.target.value)} placeholder={t("portfolio.buyPricePlaceholder")} required />
         </Field>
-        <Field label="Price unit">
-          <input className={inputClass} list="units" value={form.priceUnit} onChange={(event) => set("priceUnit", event.target.value)} placeholder="shares, troy oz, pieces" required />
+        <Field label={t("portfolio.priceUnit")}>
+          <input className={inputClass} list="units" value={form.priceUnit} onChange={(event) => set("priceUnit", event.target.value)} placeholder={t("portfolio.priceUnitPlaceholder")} required />
         </Field>
-        <Field label="Buy date">
+        <Field label={t("portfolio.buyDate")}>
           <input className={inputClass} type="date" value={form.buyDate} onChange={(event) => set("buyDate", event.target.value)} required />
         </Field>
         {form.recordType === "trade" && (
           <>
-            <Field label="Sell price (USD)">
+            <Field label={t("portfolio.sellPrice")}>
               <input className={inputClass} inputMode="decimal" value={form.sellPrice} onChange={(event) => set("sellPrice", event.target.value)} required />
             </Field>
-            <Field label="Sell date">
+            <Field label={t("portfolio.sellDate")}>
               <input className={inputClass} type="date" value={form.sellDate} onChange={(event) => set("sellDate", event.target.value)} required />
             </Field>
           </>
@@ -172,12 +171,10 @@ export function InvestmentEditor({
           <option key={unit} value={unit} />
         ))}
       </datalist>
-      <Field label="Notes">
+      <Field label={t("portfolio.notes")}>
         <textarea className={inputClass} value={form.notes} maxLength={500} onChange={(event) => set("notes", event.target.value)} />
       </Field>
-      <p className="text-xs leading-5 text-neutral-500">
-        Completed trades show a simple price return per unit, before fees, taxes, or partial sales. Holdings are not treated as a realized return.
-      </p>
+      <p className="text-xs leading-5 text-neutral-500">{t("portfolio.returnHint")}</p>
       {error && <p className="text-sm text-[#ff5d73]">{error}</p>}
       <div className="flex gap-2">
         <Button type="submit" disabled={busy}>
@@ -185,7 +182,7 @@ export function InvestmentEditor({
         </Button>
         {onCancel && (
           <Button type="button" variant="ghost" onClick={onCancel}>
-            Cancel
+            {t("portfolio.cancel")}
           </Button>
         )}
       </div>
@@ -212,17 +209,18 @@ export function InvestmentCard({
   onEdit?: () => void;
   onUploadProof?: () => void;
 }) {
+  const { t } = useI18n();
   const [error, setError] = useState("");
   const [proofOpen, setProofOpen] = useState(false);
 
   async function removeRecord() {
-    if (!confirm("Remove this investment record? The proof photo is removed with it.")) return;
+    if (!confirm(t("portfolio.removeConfirm"))) return;
     setError("");
     try {
       await api(`/api/investments/${item.id}`, { method: "DELETE" });
       onChange?.(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not remove the record");
+      setError(err instanceof Error ? err.message : t("portfolio.removeFailed"));
     }
   }
 
@@ -232,7 +230,7 @@ export function InvestmentCard({
         <div>
           <p className="text-xs uppercase tracking-[0.14em] text-neutral-500">
             {item.assetClass}
-            {item.category ? ` · ${item.category}` : ""} · {item.recordType === "trade" ? "completed trade" : item.recordType}
+            {item.category ? ` · ${item.category}` : ""} · {item.recordType === "trade" ? t("portfolio.trade") : t("portfolio.holding")}
           </p>
           <h3 className="mt-1 text-lg font-semibold">{item.snapshotLabel}</h3>
         </div>
@@ -241,10 +239,19 @@ export function InvestmentCard({
         )}
       </div>
       <dl className="mt-3 grid grid-cols-2 gap-2 text-sm text-neutral-600">
-        <div>Quantity: {item.quantity} {item.unit}</div>
-        <div>Buy: {item.buyPriceApproximate ? "~" : ""}{money(item.buyPrice)} / {item.priceUnit}</div>
-        {item.sellPrice != null && <div>Sell: {money(item.sellPrice)} / {item.priceUnit}</div>}
-        {item.profitPerUnit != null && <div>Gross per unit: {money(item.profitPerUnit)}</div>}
+        <div>
+          {t("portfolio.quantityLabel")} {item.quantity} {item.unit}
+        </div>
+        <div>
+          {t("portfolio.buyPrice")}: {item.buyPriceApproximate ? "~" : ""}
+          {money(item.buyPrice)} / {item.priceUnit}
+        </div>
+        {item.sellPrice != null && (
+          <div>
+            {t("portfolio.sellPrice")}: {money(item.sellPrice)} / {item.priceUnit}
+          </div>
+        )}
+        {item.profitPerUnit != null && <div>{t("portfolio.grossPerUnit", { amount: money(item.profitPerUnit) })}</div>}
       </dl>
       {item.notes && <p className="mt-2 text-sm text-neutral-700">{item.notes}</p>}
       {item.returnBasis && <p className="mt-2 text-xs text-neutral-500">{item.returnBasis}</p>}
@@ -259,7 +266,7 @@ export function InvestmentCard({
               aria-expanded={proofOpen}
               onClick={() => setProofOpen((open) => !open)}
             >
-              <span>{proofOpen ? "Hide proof" : "Tap to view proof"}</span>
+              <span>{proofOpen ? t("portfolio.hideProof") : t("portfolio.viewProof")}</span>
               <ChevronDown size={16} className={proofOpen ? "rotate-180" : ""} />
             </button>
             {proofOpen && (
@@ -267,18 +274,18 @@ export function InvestmentCard({
                 <p className="text-sm font-medium text-[#c56a00]">{item.proof.label}</p>
                 {item.proof.mimeType.includes("pdf") ? (
                   <a className="text-sm underline" href={mediaUrl(item.proof.url)} target="_blank" rel="noreferrer">
-                    View PDF proof
+                    {t("portfolio.viewPdf")}
                   </a>
                 ) : (
                   <a href={mediaUrl(item.proof.url)} target="_blank" rel="noreferrer">
-                    <img src={mediaUrl(item.proof.url)} alt="User-submitted proof" className="max-h-56 rounded-lg border border-neutral-200" />
+                    <img src={mediaUrl(item.proof.url)} alt={t("portfolio.proofAlt")} className="max-h-56 rounded-lg border border-neutral-200" />
                   </a>
                 )}
                 <ReportButton targetType="proof" targetId={item.proof.id} />
                 {mine && (
                   <Button type="button" className="h-10 w-full" onClick={onUploadProof}>
                     <Camera size={16} />
-                    Replace proof photo
+                    {t("portfolio.uploadProof")}
                   </Button>
                 )}
               </div>
@@ -286,15 +293,13 @@ export function InvestmentCard({
           </>
         ) : (
           <>
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#c56a00]">Proof of investment</p>
-            <p className="mt-2 text-sm text-neutral-600">
-              {mine ? "No photo yet. Upload a receipt or photo, then cover the sensitive details." : "No photo yet."}
-            </p>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#c56a00]">{t("landing.step2Title")}</p>
+            <p className="mt-2 text-sm text-neutral-600">{mine ? t("portfolio.noPhotoMine") : t("portfolio.noPhotoOther")}</p>
             {mine && (
               <div className="mt-3">
                 <Button type="button" className="h-10 w-full" onClick={onUploadProof}>
                   <Camera size={16} />
-                  Upload proof photo
+                  {t("portfolio.uploadProof")}
                 </Button>
               </div>
             )}
@@ -304,20 +309,20 @@ export function InvestmentCard({
       {mine && (canMoveUp || canMoveDown) && (
         <div className="mt-3 grid grid-cols-2 gap-2">
           <Button type="button" variant="outline" className="h-10 w-full" disabled={!canMoveUp} onClick={() => onMove?.(-1)}>
-            Move up
+            {t("portfolio.moveUp")}
           </Button>
           <Button type="button" variant="outline" className="h-10 w-full" disabled={!canMoveDown} onClick={() => onMove?.(1)}>
-            Move down
+            {t("portfolio.moveDown")}
           </Button>
         </div>
       )}
       {mine && (
         <div className="mt-3 grid grid-cols-2 gap-2">
           <Button type="button" variant="outline" className="h-10 w-full" onClick={onEdit}>
-            Edit record
+            {t("portfolio.editRecord")}
           </Button>
           <Button type="button" variant="outline" className="h-10 w-full border-[#ff5d73]/40 text-[#ff5d73] hover:bg-[#ff5d73]/10" onClick={removeRecord}>
-            Remove record
+            {t("portfolio.removeRecord")}
           </Button>
         </div>
       )}
@@ -416,29 +421,27 @@ export function PortfolioBoard({
     <div>
       {mine && (
         <div className="mx-4 mt-4 rounded-2xl border border-[#ffc14d]/40 bg-[#ffc14d]/10 p-4">
-          <h3 className="font-semibold">Proof of investment</h3>
-          <p className="mt-1 text-sm leading-6 text-neutral-600">
-            Upload a photo of a receipt or statement. The editor lets you cover names, account numbers, and addresses before the photo is public.
-          </p>
+          <h3 className="font-semibold">{t("portfolio.proofTitle")}</h3>
+          <p className="mt-1 text-sm leading-6 text-neutral-600">{t("portfolio.proofHint")}</p>
           <Button type="button" className="mt-3" onClick={startProof}>
             <Camera size={16} />
-            Upload proof photo
+            {t("portfolio.uploadProof")}
           </Button>
         </div>
       )}
       {mine && (
         <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
           <p className="max-w-md text-xs leading-5 text-neutral-500">
-            {DISCLAIMER} {items.length > 1 ? "Move up and Move down set the order visitors see." : ""}
+            {t("portfolio.disclaimer")} {items.length > 1 ? t("portfolio.orderHint") : ""}
           </p>
           <Button type="button" variant="outline" onClick={() => { setAttachProofAfterSave(false); setEditing("new"); }}>
-            Add holding
+            {t("portfolio.addHolding")}
           </Button>
         </div>
       )}
       {mine && pickingProof && (
         <div className="mx-4 mb-4 rounded-2xl border border-neutral-200 p-4">
-          <p className="text-sm font-medium">Which holding is this proof photo for?</p>
+          <p className="text-sm font-medium">{t("portfolio.pickHolding")}</p>
           <div className="mt-3 flex flex-col gap-2">
             {items.map((item) => (
               <button
@@ -463,11 +466,11 @@ export function PortfolioBoard({
             <div className="mb-3 flex items-center justify-between gap-3">
               <h2 className="text-lg font-semibold">{editing === "new" ? t("portfolio.addHolding") : t("portfolio.editRecord")}</h2>
               <button type="button" className="text-sm text-neutral-500" onClick={closeEditor}>
-                Close
+                {t("portfolio.close")}
               </button>
             </div>
             {attachProofAfterSave && editing === "new" && (
-              <p className="mb-3 text-sm text-neutral-600">Save the holding first. The photo editor opens next so you can cover sensitive details.</p>
+              <p className="mb-3 text-sm text-neutral-600">{t("portfolio.saveFirst")}</p>
             )}
             <InvestmentEditor
               initial={editing === "new" ? null : editing}
