@@ -7,7 +7,18 @@ import { Avatar, Button, Empty, Spinner } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n/provider";
+import type { MessageKey } from "@/lib/i18n";
 import type { AppNotification } from "@/lib/types";
+
+const typeKeys: Record<string, MessageKey> = {
+  like: "notifications.type.like",
+  reply: "notifications.type.reply",
+  repost: "notifications.type.repost",
+  follow: "notifications.type.follow",
+  mention: "notifications.type.mention",
+  chat: "notifications.type.chat",
+  moderation: "notifications.type.moderation",
+};
 
 export default function NotificationsPage() {
   const { refreshBadges } = useAuth();
@@ -55,7 +66,9 @@ export default function NotificationsPage() {
               <Avatar name={item.actor?.displayName || "F"} url={item.actor?.avatarUrl} size={36} />
               <span>
                 <span className="block text-sm">{item.text}</span>
-                <span className="text-xs text-neutral-500">{item.type} · {timeAgo(item.createdAt)}</span>
+                <span className="text-xs text-neutral-500">
+                  {t(typeKeys[item.type] || "notifications.type.chat")} · {timeAgo(item.createdAt)}
+                </span>
               </span>
             </Link>
           </li>

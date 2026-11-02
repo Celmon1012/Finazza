@@ -242,7 +242,19 @@ function RightRail() {
           <ul className="mt-3 space-y-3">
             {items.map((item) => (
               <li key={item.id}>
-                <p className="text-sm">{item.snapshotLabel}</p>
+                <p className="text-sm">
+                  {item.recordType === "trade" && item.returnPercent != null
+                    ? t("portfolio.tradeLabel", {
+                        name: item.assetName,
+                        change: `${item.returnPercent > 0 ? "+" : ""}${Math.round(item.returnPercent)}%`,
+                      })
+                    : item.recordType === "holding" && item.assetClass !== "commodity"
+                      ? t("portfolio.boughtLabel", {
+                          name: item.assetName,
+                          price: `${item.buyPriceApproximate ? "~" : ""}$${item.buyPrice}`,
+                        })
+                      : item.snapshotLabel}
+                </p>
                 {item.proof && <p className="text-xs text-[#c56a00]">{t("rail.proofUploaded")}</p>}
               </li>
             ))}
@@ -260,7 +272,19 @@ function RightRail() {
             <li key={room.id}>
               <Link href={`/chat/${room.id}`} onMouseEnter={() => prefetchMessages(room.id)} className="block rounded-xl px-2 py-1.5 hover:bg-[#fff4e0]">
                 <span className="block text-sm">#{room.slug}</span>
-                <span className="block text-xs text-neutral-500">{room.description}</span>
+                <span className="block text-xs text-neutral-500">
+                  {room.slug === "stocks-etfs"
+                    ? t("landing.room.stocks")
+                    : room.slug === "derivatives"
+                      ? t("landing.room.derivatives")
+                      : room.slug === "commodities"
+                        ? t("landing.room.commodities")
+                        : room.slug === "collectibles"
+                          ? t("landing.room.collectibles")
+                          : room.slug === "general"
+                            ? t("landing.room.general")
+                            : room.description}
+                </span>
               </Link>
             </li>
           ))}

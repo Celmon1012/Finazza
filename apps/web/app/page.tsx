@@ -299,7 +299,7 @@ function FeedPreview() {
             <p className="text-sm">
               <span className="font-semibold">Alex Morgan</span> <span className="text-[#8a7f74]">@alex</span>
             </p>
-            <p className="mt-1 text-[15px] leading-6">Added 5 kg of silver bullion. The receipt is public proof, with the dealer details removed.</p>
+            <p className="mt-1 text-[15px] leading-6">{t("landing.previewAlex")}</p>
           </div>
         </div>
       </article>
@@ -310,7 +310,7 @@ function FeedPreview() {
             <p className="text-sm">
               <span className="font-semibold">Jordan Lee</span> <span className="text-[#8a7f74]">@jordan</span>
             </p>
-            <p className="mt-1 text-[15px] leading-6">Annotated gold chart from today. A drawing on an upload, not a live price.</p>
+            <p className="mt-1 text-[15px] leading-6">{t("landing.previewJordan")}</p>
             <svg viewBox="0 0 320 110" className="mt-3 h-24 w-full rounded-xl bg-[#1c140c]" aria-hidden="true">
               <polyline
                 className="draw-line"

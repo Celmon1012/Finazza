@@ -19,8 +19,22 @@ const classKeys = [
   ["other", "portfolio.other"],
 ] as const;
 
-const categories = ["trading card", "coin", "watch", "art", "other"];
-const units = ["shares", "kg", "g", "troy oz", "oz", "pieces", "units"];
+const categories = [
+  ["trading card", "portfolio.category.tradingCard"],
+  ["coin", "portfolio.category.coin"],
+  ["watch", "portfolio.category.watch"],
+  ["art", "portfolio.category.art"],
+  ["other", "portfolio.other"],
+] as const;
+const units = [
+  ["shares", "portfolio.unit.shares"],
+  ["kg", "kg"],
+  ["g", "g"],
+  ["troy oz", "troy oz"],
+  ["oz", "oz"],
+  ["pieces", "portfolio.unit.pieces"],
+  ["units", "portfolio.unit.units"],
+] as const;
 
 const empty = {
   assetClass: "stock" as Investment["assetClass"],
@@ -131,8 +145,10 @@ export function InvestmentEditor({
         {form.assetClass === "collectible" && (
           <Field label={t("portfolio.category")}>
             <select className={inputClass} value={form.category} onChange={(event) => set("category", event.target.value)}>
-              {categories.map((category) => (
-                <option key={category}>{category}</option>
+              {categories.map(([value, labelKey]) => (
+                <option key={value} value={value}>
+                  {t(labelKey)}
+                </option>
               ))}
             </select>
           </Field>
@@ -167,8 +183,8 @@ export function InvestmentEditor({
         )}
       </div>
       <datalist id="units">
-        {units.map((unit) => (
-          <option key={unit} value={unit} />
+        {units.map(([value]) => (
+          <option key={value} value={value} />
         ))}
       </datalist>
       <Field label={t("portfolio.notes")}>

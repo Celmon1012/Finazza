@@ -68,15 +68,18 @@ function LoginForm() {
   );
 }
 
+function LoginFallback() {
+  const { t } = useI18n();
+  return (
+    <AuthLayout>
+      <h1 className="mt-6 text-3xl font-semibold">{t("auth.signIn")}</h1>
+    </AuthLayout>
+  );
+}
+
 export default function LoginPage() {
   return (
-    <Suspense
-      fallback={
-        <AuthLayout>
-          <h1 className="mt-6 text-3xl font-semibold">Sign in</h1>
-        </AuthLayout>
-      }
-    >
+    <Suspense fallback={<LoginFallback />}>
       <LoginForm />
     </Suspense>
   );

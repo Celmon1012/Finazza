@@ -28,7 +28,7 @@ import { cachedMessages, fetchMessages, prefetchMessages, rememberMessages } fro
 import { getSocket, useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n/provider";
 import type { ChatMessage, Conversation, PublicUser } from "@/lib/types";
-import { cn, timeAgo } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { ReportButton } from "./report-button";
 import { Avatar, Button, inputClass, Modal, Spinner } from "./ui";
 
@@ -87,7 +87,7 @@ function joinsPrevious(message: ChatMessage, previous?: ChatMessage) {
 
 export function ChatView() {
   const { user, refreshBadges } = useAuth();
-  const { t, locale } = useI18n();
+  const { t, locale, timeAgo } = useI18n();
   const router = useRouter();
   const pathname = usePathname() || "";
   const routeId = pathname.startsWith("/chat/") ? decodeURIComponent(pathname.slice("/chat/".length).split("/")[0] || "") : "";
@@ -394,7 +394,7 @@ export function ChatView() {
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch {
-      setError("Allow microphone access in your browser to record a voice message.");
+      setError(t("chat.micDenied"));
       return;
     }
     const mimeType = VOICE_TYPES.find((type) => MediaRecorder.isTypeSupported(type));
@@ -414,7 +414,7 @@ export function ChatView() {
       const blob = new Blob(chunks, { type: recorder.mimeType || mimeType || "audio/webm" });
       const durationMs = Math.min(Date.now() - startedAt, MAX_VOICE_MS);
       if (durationMs < MIN_VOICE_MS || !blob.size) {
-        setError("That recording was too short. Tap the microphone and speak for at least a second.");
+        setError(t("chat.recordingTooShort"));
         return;
       }
       sendVoice(blob, conversationId, durationMs).catch(() => undefined);

@@ -10,7 +10,7 @@ import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n/provider";
 import type { MessageKey } from "@/lib/i18n";
 import type { PublicUser, Report } from "@/lib/types";
-import { cn, timeAgo } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 type Tab = "overview" | "people" | "posts" | "rooms" | "reports";
 
@@ -197,7 +197,7 @@ function PageBar({ page, total, onPage }: { page: number; total: number; onPage:
 }
 
 function PeopleTab({ onError }: { onError: (message: string) => void }) {
-  const { t } = useI18n();
+  const { t, timeAgo } = useI18n();
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -281,7 +281,7 @@ function PeopleTab({ onError }: { onError: (message: string) => void }) {
 }
 
 function PostsTab({ onError }: { onError: (message: string) => void }) {
-  const { t } = useI18n();
+  const { t, timeAgo } = useI18n();
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -506,7 +506,7 @@ function RoomsTab({ onError }: { onError: (message: string) => void }) {
 }
 
 function ReportsTab({ onError }: { onError: (message: string) => void }) {
-  const { t } = useI18n();
+  const { t, timeAgo } = useI18n();
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [reports, setReports] = useState<Report[] | null>(null);
