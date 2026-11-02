@@ -41,7 +41,7 @@ export default function PostPage() {
   return (
     <div>
       <header className="sticky top-0 z-20 flex items-center gap-4 page-wash border-b border-[#f0e6d8] px-4 py-3">
-        <Link href="/home" aria-label={t("post.back")}>
+        <Link href="/explore" aria-label={t("post.back")}>
           <ArrowLeft />
         </Link>
         <h1 className="text-xl font-semibold">{t("post.pageTitle")}</h1>
@@ -55,7 +55,7 @@ export default function PostPage() {
           onChange={load}
           onRemoved={() => {
             setPost(null);
-            router.replace("/home");
+            router.replace("/explore");
           }}
         />
       )}
