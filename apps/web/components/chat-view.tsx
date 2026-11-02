@@ -60,14 +60,19 @@ function sameDay(left: string, right: string) {
   return new Date(left).toDateString() === new Date(right).toDateString();
 }
 
-function dayLabel(iso: string) {
+function dayLabel(iso: string, todayLabel: string, yesterdayLabel: string, locale: string) {
   const date = new Date(iso);
   const today = new Date();
   const yesterday = new Date();
   yesterday.setDate(today.getDate() - 1);
-  if (date.toDateString() === today.toDateString()) return "Today";
-  if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
-  return date.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric", year: date.getFullYear() === today.getFullYear() ? undefined : "numeric" });
+  if (date.toDateString() === today.toDateString()) return todayLabel;
+  if (date.toDateString() === yesterday.toDateString()) return yesterdayLabel;
+  return date.toLocaleDateString(locale === "zh-HK" ? "zh-HK" : "en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: date.getFullYear() === today.getFullYear() ? undefined : "numeric",
+  });
 }
 
 function clock(iso: string) {
@@ -82,7 +87,7 @@ function joinsPrevious(message: ChatMessage, previous?: ChatMessage) {
 
 export function ChatView() {
   const { user, refreshBadges } = useAuth();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const router = useRouter();
   const pathname = usePathname() || "";
   const routeId = pathname.startsWith("/chat/") ? decodeURIComponent(pathname.slice("/chat/".length).split("/")[0] || "") : "";
@@ -555,7 +560,7 @@ export function ChatView() {
                         </div>
                         <div className="flex items-center justify-between gap-2">
                           <p className={cn("truncate text-sm", count > 0 ? "font-medium text-neutral-900" : "text-neutral-500")}>
-                            {item.lastMessageText || item.description || "No messages yet"}
+                            {item.lastMessageText || item.description || t("chat.noMessagesYet")}
                           </p>
                           {count > 0 && <span className="grid min-w-5 shrink-0 place-items-center rounded-full bg-[#ff7a18] px-1.5 text-[11px] font-semibold leading-5 text-black">{count > 99 ? "99+" : count}</span>}
                         </div>
@@ -564,11 +569,11 @@ export function ChatView() {
                     {item.type === "dm" && !item.lastMessageText && (
                       <button
                         type="button"
-                        title="Delete empty chat"
-                        aria-label="Delete empty chat"
+                        title={t("chat.deleteEmpty")}
+                        aria-label={t("chat.deleteEmpty")}
                         className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full bg-white text-neutral-400 shadow-sm transition hover:text-[#ff5d73] md:opacity-0 md:group-hover:opacity-100"
                         onClick={() => {
-                          removeEmpty(item.id).catch((err) => setError(err instanceof Error ? err.message : "Could not delete the chat"));
+                          removeEmpty(item.id).catch((err) => setError(err instanceof Error ? err.message : t("chat.deleteFailed")));
                         }}
                       >
                         <Trash2 size={15} />
@@ -590,7 +595,7 @@ export function ChatView() {
               <span className="gold-fill mx-auto grid h-16 w-16 place-items-center rounded-3xl shadow-glow">
                 <MessageCircle size={28} />
               </span>
-              <h2 className="mt-5 text-2xl font-bold tracking-tight">Your messages</h2>
+              <h2 className="mt-5 text-2xl font-bold tracking-tight">{t("chat.yourMessages")}</h2>
               <p className="mt-2 text-sm leading-6 text-neutral-500">
                 {t("chat.pickHint")}
               </p>
@@ -603,7 +608,7 @@ export function ChatView() {
               <Link
                 href="/chat"
                 className="grid h-9 w-9 place-items-center rounded-full hover:bg-neutral-100 md:hidden"
-                aria-label="Back to chats"
+                aria-label={t("chat.backToChats")}
                 onClick={(event) => {
                   event.preventDefault();
                   showConversation("");
@@ -618,7 +623,7 @@ export function ChatView() {
                     {active.name}
                   </Link>
                 ) : (
-                  <h2 className="truncate font-semibold">{active ? titleOf(active) : "Chat"}</h2>
+                  <h2 className="truncate font-semibold">{active ? titleOf(active) : t("chat.messages")}</h2>
                 )}
                 <p className="truncate text-xs text-neutral-500">
                   {active?.type === "topic"
@@ -646,7 +651,7 @@ export function ChatView() {
                   aria-label={t("chat.deleteEmpty")}
                   className="grid h-9 w-9 place-items-center rounded-full text-neutral-400 transition hover:bg-neutral-100 hover:text-[#ff5d73]"
                   onClick={() => {
-                    removeEmpty(active.id).catch((err) => setError(err instanceof Error ? err.message : "Could not delete the chat"));
+                    removeEmpty(active.id).catch((err) => setError(err instanceof Error ? err.message : t("chat.deleteFailed")));
                   }}
                 >
                   <Trash2 size={17} />
@@ -656,13 +661,13 @@ export function ChatView() {
 
             <div className="min-h-0 flex-1 overflow-y-auto bg-[url('/bg/chat-pattern.svg')] bg-[length:240px_240px] bg-fixed bg-repeat px-3 py-4 sm:px-5">
               {!messagesReady ? (
-                <Spinner label="Opening chat" />
+                <Spinner label={t("chat.openingChat")} />
               ) : messages.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center px-6 text-center">
                   {active && <ConversationAvatar convo={active} viewerId={user?.id} size={72} />}
                   <p className="mt-4 text-lg font-semibold">{active ? titleOf(active) : t("chat.newChat")}</p>
                   <p className="mt-1 max-w-xs text-sm text-neutral-500">
-                    {active?.type === "dm" ? `This is the start of your conversation with ${active.name}. Say hello.` : "No messages yet. Be the first to say something."}
+                    {active?.type === "dm" ? t("chat.dmStart", { name: active.name }) : t("chat.emptyThread")}
                   </p>
                 </div>
               ) : (
@@ -677,7 +682,7 @@ export function ChatView() {
                           <div className="my-4 flex items-center gap-3">
                             <span className="h-px flex-1 bg-neutral-200" />
                             <span className="rounded-full bg-white px-3 py-1 text-[11px] font-medium uppercase tracking-wide text-neutral-500 shadow-sm ring-1 ring-neutral-200">
-                              {dayLabel(message.createdAt)}
+                              {dayLabel(message.createdAt, t("chat.today"), t("chat.yesterday"), locale)}
                             </span>
                             <span className="h-px flex-1 bg-neutral-200" />
                           </div>
@@ -701,13 +706,13 @@ export function ChatView() {
               className="shrink-0 border-t border-[#f0e6d8] bg-[url('/bg/chat-pattern.svg')] bg-[length:240px_240px] bg-fixed bg-repeat px-3 py-2.5 sm:px-4"
               onSubmit={(event) => {
                 event.preventDefault();
-                send().catch((err) => setError(err instanceof Error ? err.message : "Could not send"));
+                send().catch((err) => setError(err instanceof Error ? err.message : t("chat.sendFailed")));
               }}
             >
               {error && (
                 <div className="mx-auto mb-2 flex max-w-3xl items-center justify-between gap-2 rounded-xl bg-[#fff0f2] px-3 py-2 text-sm text-[#d6334d]">
                   <span>{error}</span>
-                  <button type="button" aria-label="Dismiss" onClick={() => setError("")}>
+                  <button type="button" aria-label={t("common.dismiss")} onClick={() => setError("")}>
                     <X size={15} />
                   </button>
                 </div>
@@ -716,8 +721,8 @@ export function ChatView() {
                 <div className="mx-auto flex max-w-3xl items-center gap-2 rounded-[24px] border border-[#ffc7cf] bg-[#fff5f6] p-1.5" role="status" aria-live="polite">
                   <button
                     type="button"
-                    title="Cancel recording"
-                    aria-label="Cancel recording"
+                    title={t("chat.cancelRecording")}
+                    aria-label={t("chat.cancelRecording")}
                     className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-neutral-500 transition hover:bg-white hover:text-[#d6334d]"
                     onClick={() => stopRecording(true)}
                   >
@@ -737,7 +742,7 @@ export function ChatView() {
                       />
                     ))}
                   </span>
-                  <span className="hidden text-xs text-neutral-400 sm:inline">max {formatDuration(MAX_VOICE_MS)}</span>
+                  <span className="hidden text-xs text-neutral-400 sm:inline">{t("chat.maxVoice", { duration: formatDuration(MAX_VOICE_MS) })}</span>
                   <button
                     type="button"
                     title={t("chat.sendVoice")}
@@ -751,7 +756,7 @@ export function ChatView() {
               ) : (
               <div className="mx-auto flex max-w-3xl items-end gap-1.5 rounded-[24px] border border-neutral-200 bg-neutral-50 p-1.5 transition focus-within:border-[#f0a020] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#f0a020]/10">
                 <label
-                  title="Attach a photo"
+                  title={t("chat.attachPhoto")}
                   className={cn(
                     "grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-full text-neutral-500 transition hover:bg-[#fff4e0] hover:text-[#c56a00]",
                     uploading && "pointer-events-none",
@@ -799,7 +804,7 @@ export function ChatView() {
                     disabled={uploading}
                     className="gold-fill grid h-9 w-9 shrink-0 place-items-center rounded-full shadow-sm transition disabled:opacity-40"
                     onClick={() => {
-                      startRecording().catch((err) => setError(err instanceof Error ? err.message : "Could not start recording"));
+                      startRecording().catch((err) => setError(err instanceof Error ? err.message : t("chat.recordFailed")));
                     }}
                   >
                     <Mic size={17} />
@@ -895,6 +900,7 @@ function MessageRow({
   first: boolean;
   last: boolean;
 }) {
+  const { t } = useI18n();
   const pending = isPending(message);
   const imageOnly = Boolean(message.imageUrl && !message.text && !message.deleted);
   return (
@@ -902,14 +908,14 @@ function MessageRow({
       {!mine && (
         <span className="w-8 shrink-0">
           {last && (
-            <Link href={message.author ? `/u/${message.author.username}` : "#"} aria-label={message.author?.displayName || "Removed user"}>
-              <Avatar name={message.author?.displayName || "Removed"} url={message.author?.avatarUrl} size={32} />
+            <Link href={message.author ? `/u/${message.author.username}` : "#"} aria-label={message.author?.displayName || t("chat.removedUser")}>
+              <Avatar name={message.author?.displayName || t("chat.removed")} url={message.author?.avatarUrl} size={32} />
             </Link>
           )}
         </span>
       )}
       <div className={cn("flex min-w-0 max-w-[78%] flex-col sm:max-w-[70%]", mine ? "items-end" : "items-start")}>
-        {!mine && showName && first && <span className="mb-1 ml-3 text-xs font-medium text-neutral-500">{message.author?.displayName || "Removed user"}</span>}
+        {!mine && showName && first && <span className="mb-1 ml-3 text-xs font-medium text-neutral-500">{message.author?.displayName || t("chat.removedUser")}</span>}
         <div className={cn("flex items-center gap-1.5", mine && "flex-row-reverse")}>
           <div
             className={cn(
@@ -921,12 +927,12 @@ function MessageRow({
             )}
           >
             {message.deleted ? (
-              <p className="text-sm italic opacity-70">Message removed</p>
+              <p className="text-sm italic opacity-70">{t("chat.messageRemoved")}</p>
             ) : (
               <>
                 {message.imageUrl && (
                   <a href={mediaUrl(message.imageUrl)} target="_blank" rel="noreferrer" className="block">
-                    <img src={mediaUrl(message.imageUrl)} alt="Shared image" className={cn("max-h-72 rounded-2xl object-cover", message.text && "mb-1.5")} />
+                    <img src={mediaUrl(message.imageUrl)} alt={t("chat.sharedImage")} className={cn("max-h-72 rounded-2xl object-cover", message.text && "mb-1.5")} />
                   </a>
                 )}
                 {message.audioUrl && (
@@ -948,7 +954,7 @@ function MessageRow({
         </div>
         {last && (
           <span className={cn("mt-1 text-[11px] text-neutral-400", mine ? "mr-2" : "ml-3")}>
-            {pending ? "Sending…" : clock(message.createdAt)}
+            {pending ? t("chat.sending") : clock(message.createdAt)}
           </span>
         )}
       </div>
@@ -972,6 +978,7 @@ function savedVoiceSeconds(url: string) {
 }
 
 function VoicePlayer({ src, seconds, mine }: { src: string; seconds?: number; mine: boolean }) {
+  const { t } = useI18n();
   const audio = useRef<HTMLAudioElement | null>(null);
   const probing = useRef(false);
   const [playing, setPlaying] = useState(false);
@@ -1024,7 +1031,7 @@ function VoicePlayer({ src, seconds, mine }: { src: string; seconds?: number; mi
     <div className="flex w-60 max-w-full items-center gap-2.5 py-0.5">
       <button
         type="button"
-        aria-label={playing ? "Pause voice message" : "Play voice message"}
+        aria-label={playing ? t("chat.pauseVoice") : t("chat.playVoice")}
         className={cn(
           "grid h-9 w-9 shrink-0 place-items-center rounded-full transition",
           mine ? "bg-[#1a1004] text-[#f6b429] hover:bg-black" : "gold-fill shadow-sm",
@@ -1050,7 +1057,7 @@ function VoicePlayer({ src, seconds, mine }: { src: string; seconds?: number; mi
           })}
         </div>
         <p className={cn("mt-0.5 text-[11px] tabular-nums", mine ? "text-[#1a1004]/70" : "text-neutral-500")}>
-          {playing || position > 0 ? formatDuration(position * 1000) : duration ? formatDuration(duration * 1000) : "Voice message"}
+          {playing || position > 0 ? formatDuration(position * 1000) : duration ? formatDuration(duration * 1000) : t("chat.voiceMessage")}
         </p>
       </div>
       <audio

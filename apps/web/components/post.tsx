@@ -102,7 +102,7 @@ export function Composer({
           : "border-b border-[#f0e6d8]",
       )}
     >
-      <Avatar name={user?.displayName || "You"} url={user?.avatarUrl} size={replyMode ? 36 : 40} />
+      <Avatar name={user?.displayName || t("common.you")} url={user?.avatarUrl} size={replyMode ? 36 : 40} />
       <div className="min-w-0 flex-1">
         <textarea
           value={text}
@@ -292,7 +292,7 @@ export function PostCard({
     event.preventDefault();
     const draft = quoteText.trim();
     if (!draft) {
-      setQuoteError("Add a short take to quote this post.");
+      setQuoteError(t("post.quoteNeedTake"));
       return;
     }
     setQuoteBusy(true);
@@ -308,7 +308,7 @@ export function PostCard({
       setRepostCount((count) => count + 1);
       onChange?.();
     } catch (err) {
-      setQuoteError(err instanceof Error ? err.message : "Could not post the quote");
+      setQuoteError(err instanceof Error ? err.message : t("post.quoteFailed"));
     } finally {
       setQuoteBusy(false);
     }
@@ -435,7 +435,7 @@ export function PostCard({
             <button
               type="button"
               onClick={toggleBookmark}
-              aria-label={bookmarked ? "Remove bookmark" : "Bookmark"}
+              aria-label={bookmarked ? t("post.removeBookmark") : t("post.bookmark")}
               className={cn("inline-flex items-center text-sm hover:text-[#c56a00]", bookmarked && "text-[#c56a00]")}
             >
               <Bookmark size={16} fill={bookmarked ? "currentColor" : "none"} />
@@ -443,7 +443,7 @@ export function PostCard({
             <span className="flex items-center gap-3">
               <ReportButton targetType="post" targetId={post.id} label="" />
               {user?.id === author.id && !pending && (
-                <button type="button" onClick={remove} aria-label="Delete post" className="hover:text-[#ff5d73]">
+                <button type="button" onClick={remove} aria-label={t("post.delete")} className="hover:text-[#ff5d73]">
                   <Trash2 size={15} />
                 </button>
               )}
@@ -453,14 +453,14 @@ export function PostCard({
       </div>
 
       {quoteOpen && source.author && (
-        <div className="fixed inset-0 z-50 grid place-items-end bg-black/50 p-0 sm:place-items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Quote post">
-          <button type="button" className="absolute inset-0" aria-label="Close" onClick={() => !quoteBusy && setQuoteOpen(false)} />
+        <div className="fixed inset-0 z-50 grid place-items-end bg-black/50 p-0 sm:place-items-center sm:p-4" role="dialog" aria-modal="true" aria-label={t("post.quoteTitle")}>
+          <button type="button" className="absolute inset-0" aria-label={t("common.close")} onClick={() => !quoteBusy && setQuoteOpen(false)} />
           <form
             onSubmit={submitQuote}
             className="relative z-10 flex max-h-[92dvh] w-full max-w-xl flex-col rounded-t-[28px] border border-[#f0e6d8] bg-[#fffaf3] shadow-[0_-24px_60px_-28px_rgba(28,20,12,0.45)] sm:rounded-[28px]"
           >
             <div className="flex items-center justify-between border-b border-[#f0e6d8] px-4 py-3">
-              <button type="button" className="rounded-full p-1.5 text-neutral-500 hover:bg-white" aria-label="Close" disabled={quoteBusy} onClick={() => setQuoteOpen(false)}>
+              <button type="button" className="rounded-full p-1.5 text-neutral-500 hover:bg-white" aria-label={t("common.close")} disabled={quoteBusy} onClick={() => setQuoteOpen(false)}>
                 <X size={18} />
               </button>
               <h2 className="text-base font-semibold">{t("post.quoteTitle")}</h2>
@@ -470,7 +470,7 @@ export function PostCard({
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
               <div className="flex gap-3">
-                <Avatar name={user?.displayName || "You"} url={user?.avatarUrl} />
+                <Avatar name={user?.displayName || t("common.you")} url={user?.avatarUrl} />
                 <div className="min-w-0 flex-1">
                   <textarea
                     value={quoteText}
@@ -574,7 +574,7 @@ export function ReplyCard({
             <Heart size={14} fill={liked ? "currentColor" : "none"} /> {likeCount || ""}
           </button>
           {user?.id === author.id && !pending && (
-            <button type="button" onClick={remove} aria-label="Delete reply" className="text-xs hover:text-[#ff5d73]">
+            <button type="button" onClick={remove} aria-label={t("post.deleteReply")} className="text-xs hover:text-[#ff5d73]">
               <Trash2 size={14} />
             </button>
           )}

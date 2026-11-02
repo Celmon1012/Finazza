@@ -7,10 +7,12 @@ import { AuthLayout } from "@/components/auth-layout";
 import { Spinner } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n/provider";
 import type { Me } from "@/lib/types";
 
 function CallbackInner() {
   const { setSession } = useAuth();
+  const { t } = useI18n();
   const router = useRouter();
   const search = useSearchParams();
   const code = search?.get("code") || "";
@@ -20,7 +22,7 @@ function CallbackInner() {
   useEffect(() => {
     if (errorParam) return;
     if (!code) {
-      setError("Google sign-in was incomplete.");
+      setError(t("auth.googleIncomplete"));
       return;
     }
     let cancelled = false;
@@ -34,28 +36,28 @@ function CallbackInner() {
         router.replace("/home");
       })
       .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Google sign-in failed.");
+        if (!cancelled) setError(err instanceof Error ? err.message : t("auth.googleFailed"));
       });
     return () => {
       cancelled = true;
     };
-  }, [code, errorParam, router, setSession]);
+  }, [code, errorParam, router, setSession, t]);
 
   return (
     <AuthLayout>
-      <h1 className="mt-6 text-3xl font-semibold">Signing you in</h1>
+      <h1 className="mt-6 text-3xl font-semibold">{t("auth.signingIn")}</h1>
       {error ? (
         <>
           <p className="mt-3 text-sm text-[#ff5d73]">{error}</p>
           <p className="mt-6 text-sm text-neutral-500">
             <Link href="/login" className="text-[#c56a00]">
-              Back to sign in
+              {t("auth.backToSignIn")}
             </Link>
           </p>
         </>
       ) : (
         <>
-          <p className="mt-2 text-sm text-neutral-500">Finishing Google sign-in…</p>
+          <p className="mt-2 text-sm text-neutral-500">{t("auth.finishingGoogle")}</p>
           <Spinner />
         </>
       )}
@@ -64,11 +66,12 @@ function CallbackInner() {
 }
 
 export default function GoogleCallbackPage() {
+  const { t } = useI18n();
   return (
     <Suspense
       fallback={
         <AuthLayout>
-          <h1 className="mt-6 text-3xl font-semibold">Signing you in</h1>
+          <h1 className="mt-6 text-3xl font-semibold">{t("auth.signingIn")}</h1>
           <Spinner />
         </AuthLayout>
       }

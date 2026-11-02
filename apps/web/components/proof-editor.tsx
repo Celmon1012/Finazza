@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useI18n } from "@/lib/i18n/provider";
+import type { MessageKey } from "@/lib/i18n";
 import { Button } from "./ui";
 
 type Tool = "cover" | "brush";
@@ -8,7 +10,7 @@ type Mark =
   | { tool: "cover"; x: number; y: number; x2: number; y2: number }
   | { tool: "brush"; points: number[]; size: number };
 
-const CHECKS = ["Real names", "Account numbers", "Addresses"];
+const CHECK_KEYS = ["proof.checkNames", "proof.checkAccounts", "proof.checkAddresses"] as const satisfies readonly MessageKey[];
 
 export function ProofEditor({
   busy,
@@ -21,6 +23,7 @@ export function ProofEditor({
   onClose: () => void;
   onSave: (file: File) => Promise<void>;
 }) {
+  const { t } = useI18n();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
   const drawing = useRef(false);
@@ -69,7 +72,7 @@ export function ProofEditor({
       paint([], null);
       URL.revokeObjectURL(url);
     };
-    image.onerror = () => setLocalError("That image could not be opened");
+    image.onerror = () => setLocalError(t("proof.openFailed"));
     image.src = url;
   }
 
@@ -125,12 +128,12 @@ export function ProofEditor({
     }
     const canvas = canvasRef.current;
     if (!canvas || !imageRef.current) {
-      setLocalError("Choose a photo of the receipt first");
+      setLocalError(t("proof.needPhoto"));
       return;
     }
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.82));
     if (!blob) {
-      setLocalError("Could not save the edited photo");
+      setLocalError(t("proof.saveFailed"));
       return;
     }
     await onSave(new File([blob], "redacted-proof.jpg", { type: "image/jpeg" }));
@@ -141,17 +144,17 @@ export function ProofEditor({
       <div className="mx-auto w-full max-w-3xl rounded-[28px] bg-white p-4 shadow-xl sm:p-6">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold">Redact the proof</h2>
-            <p className="mt-1 text-sm text-neutral-500">Cover names, account numbers, and addresses. The bars are saved into the photo.</p>
+            <h2 className="text-lg font-semibold">{t("proof.title")}</h2>
+            <p className="mt-1 text-sm text-neutral-500">{t("proof.hint")}</p>
           </div>
           <button type="button" className="text-sm text-neutral-500" onClick={onClose}>
-            Close
+            {t("common.close")}
           </button>
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <label className="cursor-pointer rounded-full border border-neutral-300 px-3 py-2 text-sm">
-            Choose photo
+            {t("proof.choosePhoto")}
             <input
               type="file"
               accept="image/png,image/jpeg,image/webp"
@@ -163,17 +166,17 @@ export function ProofEditor({
             />
           </label>
           <button type="button" className={`rounded-full px-3 py-2 text-sm ${tool === "cover" ? "bg-neutral-900 text-white" : "bg-neutral-100"}`} onClick={() => setTool("cover")}>
-            Cover box
+            {t("proof.coverBox")}
           </button>
           <button type="button" className={`rounded-full px-3 py-2 text-sm ${tool === "brush" ? "bg-neutral-900 text-white" : "bg-neutral-100"}`} onClick={() => setTool("brush")}>
-            Brush
+            {t("proof.brush")}
           </button>
           <label className="flex items-center gap-2 text-xs text-neutral-500">
-            Brush
+            {t("proof.brush")}
             <input type="range" min={12} max={72} value={brush} onChange={(event) => setBrush(Number(event.target.value))} />
           </label>
           <button type="button" className="text-sm text-neutral-500" onClick={undo}>
-            Undo
+            {t("common.undo")}
           </button>
         </div>
 
@@ -187,25 +190,25 @@ export function ProofEditor({
         />
 
         <div className="mt-4 space-y-2 text-sm">
-          <p className="text-neutral-600">Confirm these are gone before the file is public:</p>
-          {CHECKS.map((label, index) => (
-            <label key={label} className="flex items-center gap-2">
+          <p className="text-neutral-600">{t("proof.confirmGone")}</p>
+          {CHECK_KEYS.map((key, index) => (
+            <label key={key} className="flex items-center gap-2">
               <input
                 type="checkbox"
                 checked={checks[index]}
                 onChange={(event) => setChecks((current) => current.map((value, itemIndex) => (itemIndex === index ? event.target.checked : value)))}
               />
-              {label}
+              {t(key)}
             </label>
           ))}
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <Button type="button" disabled={!ready || busy} onClick={() => save().catch(() => undefined)}>
-            {busy ? "Uploading" : "Upload proof"}
+            {busy ? t("common.uploading") : t("proof.upload")}
           </Button>
           <label className={ready ? "cursor-pointer text-sm text-[#c56a00]" : "cursor-not-allowed text-sm text-neutral-400"}>
-            {pdf ? pdf.name : "Or choose a PDF that is already redacted"}
+            {pdf ? pdf.name : t("proof.choosePdf")}
             <input
               type="file"
               accept="application/pdf"
@@ -223,7 +226,7 @@ export function ProofEditor({
           </label>
         </div>
         {(localError || error) && <p className="mt-3 text-sm text-[#ff5d73]">{localError || error}</p>}
-        <p className="mt-3 text-xs leading-5 text-neutral-500">The public label is “Proof uploaded — not verified by the platform.”</p>
+        <p className="mt-3 text-xs leading-5 text-neutral-500">{t("proof.publicLabel")}</p>
       </div>
     </div>
   );

@@ -461,7 +461,7 @@ export function PortfolioBoard({
       )}
       {mine && editing && createPortal(
         <div className="fixed inset-0 z-[80] bg-black/70" role="dialog" aria-modal="true" aria-label={editing === "new" ? t("portfolio.addHolding") : t("portfolio.editRecord")}>
-          <button type="button" className="absolute inset-0" aria-label="Close" onClick={closeEditor} />
+          <button type="button" className="absolute inset-0" aria-label={t("common.close")} onClick={closeEditor} />
           <div className="absolute inset-x-0 bottom-0 top-10 z-10 overflow-y-auto overscroll-contain rounded-t-3xl bg-white px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4 sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[90vh] sm:w-full sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl">
             <div className="mb-3 flex items-center justify-between gap-3">
               <h2 className="text-lg font-semibold">{editing === "new" ? t("portfolio.addHolding") : t("portfolio.editRecord")}</h2>

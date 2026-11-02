@@ -74,14 +74,15 @@ export function Modal({
   children: React.ReactNode;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4" role="dialog" aria-modal="true">
-      <button className="absolute inset-0" aria-label="Close dialog" onClick={onClose} />
+      <button className="absolute inset-0" aria-label={t("common.closeDialog")} onClick={onClose} />
       <div className="relative z-10 w-full max-w-lg rounded-2xl border border-neutral-200 bg-white p-5 shadow-glow">
         <div className="mb-4 flex items-center justify-between gap-4">
           <h2 className="text-lg font-semibold">{title}</h2>
           <button className="text-sm text-neutral-500" onClick={onClose} type="button">
-            Close
+            {t("common.close")}
           </button>
         </div>
         {children}
@@ -101,6 +102,7 @@ export function AvatarPicker({
   size?: number;
   onChange: (avatarUrl: string | null) => void;
 }) {
+  const { t } = useI18n();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -111,7 +113,7 @@ export function AvatarPicker({
       const result = await api<{ user: { avatarUrl: string | null } }>("/api/users/me/avatar", { method: "DELETE" });
       onChange(result.user.avatarUrl);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not remove the photo");
+      setError(err instanceof Error ? err.message : t("settings.removePhotoFailed"));
     } finally {
       setBusy(false);
     }
@@ -126,7 +128,7 @@ export function AvatarPicker({
       const result = await api<{ user: { avatarUrl: string | null } }>("/api/users/me/avatar", { method: "POST", body: form });
       if (result.user.avatarUrl) onChange(result.user.avatarUrl);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not upload the photo");
+      setError(err instanceof Error ? err.message : t("settings.uploadPhotoFailed"));
     } finally {
       setBusy(false);
     }
@@ -139,7 +141,7 @@ export function AvatarPicker({
         <div className="flex min-w-0 flex-wrap gap-2">
           <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-full border border-neutral-300 px-3 text-sm hover:bg-neutral-100">
             <Camera size={16} />
-            <span>{busy ? "Working…" : "Change profile picture"}</span>
+            <span>{busy ? t("settings.working") : t("settings.changePhoto")}</span>
             <input
               type="file"
               accept="image/png,image/jpeg,image/webp"
@@ -160,7 +162,7 @@ export function AvatarPicker({
               onClick={() => remove().catch(() => undefined)}
             >
               <X size={16} />
-              Delete profile picture
+              {t("settings.deletePhoto")}
             </button>
           )}
         </div>

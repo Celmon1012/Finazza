@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import { useI18n } from "@/lib/i18n/provider";
+import type { MessageKey } from "@/lib/i18n";
 import { Button } from "./ui";
 
 type Tool = "pen" | "line" | "arrow" | "rect" | "text";
@@ -10,6 +12,14 @@ type Shape =
   | { tool: "pen"; points: number[]; color: string; size: number }
   | { tool: "line" | "arrow" | "rect"; x: number; y: number; x2: number; y2: number; color: string; size: number }
   | { tool: "text"; x: number; y: number; text: string; color: string; size: number };
+
+const TOOL_KEYS: Record<Tool, MessageKey> = {
+  pen: "annotate.pen",
+  line: "annotate.line",
+  arrow: "annotate.arrow",
+  rect: "annotate.rect",
+  text: "annotate.text",
+};
 
 function hsvToRgb(h: number, s: number, v: number) {
   const c = v * s;
@@ -56,6 +66,7 @@ function hexToHsv(hex: string) {
 }
 
 function ColorWheel({ color, onChange }: { color: string; onChange: (value: string) => void }) {
+  const { t } = useI18n();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const hsv = hexToHsv(color);
 
@@ -114,7 +125,7 @@ function ColorWheel({ color, onChange }: { color: string; onChange: (value: stri
         ref={canvasRef}
         width={128}
         height={128}
-        aria-label="Colour wheel"
+        aria-label={t("annotate.colourWheel")}
         className="h-32 w-32 touch-none cursor-crosshair"
         onPointerDown={(event) => {
           event.currentTarget.setPointerCapture(event.pointerId);
@@ -125,11 +136,11 @@ function ColorWheel({ color, onChange }: { color: string; onChange: (value: stri
         }}
       />
       <label className="flex w-24 flex-col gap-1 text-xs text-neutral-500">
-        Colour
+        {t("annotate.colour")}
         <span className="h-7 w-7 rounded-full border border-neutral-300" style={{ background: color }} />
-        Brightness
+        {t("annotate.brightness")}
         <input
-          aria-label="Colour brightness"
+          aria-label={t("annotate.brightness")}
           type="range"
           min={0}
           max={100}
@@ -142,19 +153,21 @@ function ColorWheel({ color, onChange }: { color: string; onChange: (value: stri
 }
 
 export function Annotator() {
+  const { t } = useI18n();
   const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
   const [tool, setTool] = useState<Tool>("pen");
   const [color, setColor] = useState("#ff7a18");
   const [size, setSize] = useState(3);
-  const [label, setLabel] = useState("Note");
+  const [label, setLabel] = useState("");
   const [shapes, setShapes] = useState<Shape[]>([]);
   const [draft, setDraft] = useState<Shape | null>(null);
   const [caption, setCaption] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const drawing = useRef(false);
+  const noteLabel = label || t("annotate.note");
 
   function paint(nextShapes: Shape[], nextDraft: Shape | null) {
     const canvas = canvasRef.current;
@@ -205,7 +218,7 @@ export function Annotator() {
     const { x, y } = point(event);
     drawing.current = true;
     if (tool === "text") {
-      const next = [...shapes, { tool: "text" as const, x, y, text: label || "Note", color, size: Math.max(size, 8) * 5 }];
+      const next = [...shapes, { tool: "text" as const, x, y, text: noteLabel, color, size: Math.max(size, 8) * 5 }];
       setShapes(next);
       paint(next, null);
       drawing.current = false;
@@ -240,14 +253,14 @@ export function Annotator() {
   async function publish() {
     const canvas = canvasRef.current;
     if (!canvas || !imageRef.current) {
-      setError("Upload a chart image first");
+      setError(t("annotate.needImage"));
       return;
     }
     setBusy(true);
     setError("");
     try {
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
-      if (!blob) throw new Error("Could not export the drawing");
+      if (!blob) throw new Error(t("annotate.exportFailed"));
       const form = new FormData();
       form.append("files", new File([blob], "annotated-chart.png", { type: "image/png" }));
       const uploaded = await api<{ files: { url: string; kind: "image" }[] }>("/api/uploads", { method: "POST", body: form });
@@ -257,7 +270,7 @@ export function Annotator() {
       });
       router.push("/home");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not post the chart");
+      setError(err instanceof Error ? err.message : t("annotate.postFailed"));
     } finally {
       setBusy(false);
     }
@@ -265,30 +278,30 @@ export function Annotator() {
 
   return (
     <div className="space-y-4 px-4 py-4">
-      <p className="text-sm text-neutral-500">Upload a chart screenshot, draw on it, then post the image. Nothing here calls a market-data feed.</p>
+      <p className="text-sm text-neutral-500">{t("annotate.intro")}</p>
       <div className="flex flex-wrap items-center gap-2">
         <label className="cursor-pointer rounded-full border border-neutral-300 px-3 py-2 text-sm">
-          Upload chart
+          {t("annotate.upload")}
           <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(event) => event.target.files?.[0] && loadFile(event.target.files[0])} />
         </label>
         {(["pen", "line", "arrow", "rect", "text"] as Tool[]).map((item) => (
-          <button key={item} type="button" className={`rounded-full px-3 py-2 text-sm capitalize ${tool === item ? "bg-neutral-200" : "bg-neutral-100"}`} onClick={() => setTool(item)}>
-            {item}
+          <button key={item} type="button" className={`rounded-full px-3 py-2 text-sm ${tool === item ? "bg-neutral-200" : "bg-neutral-100"}`} onClick={() => setTool(item)}>
+            {t(TOOL_KEYS[item])}
           </button>
         ))}
         <ColorWheel color={color} onChange={setColor} />
         <label className="text-xs text-neutral-500">
-          Size
+          {t("annotate.size")}
           <input type="range" min={2} max={12} value={size} onChange={(event) => setSize(Number(event.target.value))} />
         </label>
         {tool === "text" && (
           <label className="text-xs text-neutral-500">
-            Text on the chart
-            <input className="mt-1 block rounded-full border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-950" value={label} onChange={(event) => setLabel(event.target.value)} />
+            {t("annotate.textOnChart")}
+            <input className="mt-1 block rounded-full border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-950" value={label} placeholder={t("annotate.note")} onChange={(event) => setLabel(event.target.value)} />
           </label>
         )}
         <button type="button" className="text-sm text-neutral-500" onClick={() => { const next = shapes.slice(0, -1); setShapes(next); paint(next, null); }}>
-          Undo
+          {t("common.undo")}
         </button>
       </div>
       <canvas
@@ -300,19 +313,19 @@ export function Annotator() {
         onPointerLeave={up}
       />
       <label className="block text-sm">
-        <span className="font-medium">Post text</span>
-        <span className="mt-1 block text-xs leading-5 text-neutral-500">The words of the post. The drawing stays on the chart.</span>
+        <span className="font-medium">{t("annotate.postText")}</span>
+        <span className="mt-1 block text-xs leading-5 text-neutral-500">{t("annotate.postTextHint")}</span>
         <textarea
           className="mt-2 min-h-24 w-full rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm"
           maxLength={500}
-          placeholder="Write what you want to say with this chart"
+          placeholder={t("annotate.placeholder")}
           value={caption}
           onChange={(event) => setCaption(event.target.value)}
         />
       </label>
       {error && <p className="text-sm text-[#ff5d73]">{error}</p>}
       <Button type="button" disabled={busy} onClick={publish}>
-        Post annotated chart
+        {t("annotate.submit")}
       </Button>
     </div>
   );

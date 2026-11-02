@@ -7,6 +7,7 @@ import { AuthLayout } from "@/components/auth-layout";
 import { Avatar, Button, inputClass, Spinner } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n/provider";
 import type { Me } from "@/lib/types";
 
 const KEY_STORAGE = "finazza_staff_key";
@@ -30,6 +31,7 @@ type StaffStatus = {
 
 function StaffLoginInner() {
   const { setSession, user, ready, logout } = useAuth();
+  const { t } = useI18n();
   const router = useRouter();
   const search = useSearchParams();
   const [key, setKey] = useState("");
@@ -80,7 +82,7 @@ function StaffLoginInner() {
   async function unlock(nextKey = key) {
     const trimmed = nextKey.trim();
     if (!trimmed) {
-      setError("Enter the staff key.");
+      setError(t("staff.enterKey"));
       return;
     }
     setBusy("unlock");
@@ -91,7 +93,7 @@ function StaffLoginInner() {
       sessionStorage.removeItem(KEY_STORAGE);
       setUnlocked(false);
       setAccounts([]);
-      setError(err instanceof Error ? err.message : "Could not unlock staff login");
+      setError(err instanceof Error ? err.message : t("staff.unlockFailed"));
     } finally {
       setBusy(null);
     }
@@ -101,8 +103,8 @@ function StaffLoginInner() {
     if (!account.ready) {
       setError(
         account.kind === "staff"
-          ? `${account.email} has no FINAZZA profile yet. Sign in once with Google/email using that address, then return here.`
-          : "That demo account is not in the database.",
+          ? t("staff.staffMissing", { email: account.email })
+          : t("staff.demoMissing"),
       );
       return;
     }
@@ -116,7 +118,7 @@ function StaffLoginInner() {
       setSession(result.token, result.user);
       router.replace("/home");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not sign in");
+      setError(err instanceof Error ? err.message : t("staff.signInFailed"));
       setBusy(null);
     }
   }
@@ -143,12 +145,12 @@ function StaffLoginInner() {
               <span className="block truncate font-semibold">{account.displayName}</span>
               <span className="block truncate text-sm text-neutral-500">
                 {account.kind === "staff" ? account.email : `@${account.username}`}
-                {account.ready ? "" : " · not registered yet"}
+                {account.ready ? "" : t("staff.notRegistered")}
               </span>
               <span className="block truncate text-xs text-neutral-400">{account.blurb}</span>
             </span>
             <span className="shrink-0 text-sm text-[#c56a00]">
-              {busy === account.id ? "…" : account.ready ? "Enter" : "Missing"}
+              {busy === account.id ? "…" : account.ready ? t("staff.enter") : t("staff.missing")}
             </span>
           </button>
         ))}
@@ -158,36 +160,34 @@ function StaffLoginInner() {
 
   return (
     <AuthLayout>
-      <h1 className="mt-6 text-3xl font-semibold">Staff login</h1>
-      <p className="mt-1 text-sm text-neutral-500">
-        Tap a site owner or a demo persona. For staff only.
-      </p>
+      <h1 className="mt-6 text-3xl font-semibold">{t("staff.title")}</h1>
+      <p className="mt-1 text-sm text-neutral-500">{t("staff.hint")}</p>
 
       {!ready && <Spinner />}
 
       {ready && status && !status.enabled && !unlocked && (
         <div className="mt-4 space-y-3 rounded-2xl bg-[#fff8ee] px-3 py-3 text-sm text-neutral-700">
-          <p>Sign in first with a staff email, then open this page again:</p>
+          <p>{t("staff.signInFirst")}</p>
           <ul className="list-inside list-disc text-[#c56a00]">
             {staffEmails.map((email) => (
               <li key={email}>{email}</li>
             ))}
           </ul>
           <Link href="/login" className="inline-flex text-[#c56a00]">
-            Go to sign in →
+            {t("staff.goSignIn")}
           </Link>
         </div>
       )}
 
       {ready && status?.asAdmin && unlocked && (
-        <p className="mt-3 text-sm text-[#1f9d55]">Signed in as staff ({user?.email}). Choose who to enter as.</p>
+        <p className="mt-3 text-sm text-[#1f9d55]">{t("staff.signedInAs", { email: user?.email || "" })}</p>
       )}
 
       {ready && user && !status?.asAdmin && !unlocked && (
         <div className="mt-4 space-y-2 rounded-2xl bg-[#fff0f2] px-3 py-3 text-sm text-[#d6334d]">
-          <p>You are signed in as {user.email}, which is not a staff owner email.</p>
+          <p>{t("staff.wrongEmail", { email: user.email })}</p>
           <button type="button" className="text-[#c56a00]" onClick={() => logout()}>
-            Log out and use a staff email
+            {t("staff.logoutStaff")}
           </button>
         </div>
       )}
@@ -200,27 +200,27 @@ function StaffLoginInner() {
             unlock();
           }}
         >
-          <p className="text-xs text-neutral-500">Or unlock with the shared staff key.</p>
+          <p className="text-xs text-neutral-500">{t("staff.unlockHint")}</p>
           <input
             className={inputClass}
             type="password"
             autoComplete="off"
-            placeholder="Staff key"
-            aria-label="Staff key"
+            placeholder={t("staff.key")}
+            aria-label={t("staff.key")}
             value={key}
             onChange={(event) => setKey(event.target.value)}
           />
           {error && <p className="text-sm text-[#ff5d73]">{error}</p>}
           <Button type="submit" className="w-full" disabled={busy === "unlock"}>
-            {busy === "unlock" ? "Checking…" : "Unlock with key"}
+            {busy === "unlock" ? t("staff.checking") : t("staff.unlock")}
           </Button>
         </form>
       )}
 
       {unlocked && (
         <div className="mt-6 space-y-5">
-          <AccountList title="Site owners" items={staffAccounts} />
-          <AccountList title="Demo personas (for the feed)" items={demoAccounts} />
+          <AccountList title={t("staff.owners")} items={staffAccounts} />
+          <AccountList title={t("staff.demos")} items={demoAccounts} />
           {error && <p className="text-sm text-[#ff5d73]">{error}</p>}
           <button
             type="button"
@@ -233,13 +233,13 @@ function StaffLoginInner() {
               setError("");
             }}
           >
-            Hide accounts
+            {t("staff.hide")}
           </button>
         </div>
       )}
 
       <p className="mt-6 text-sm text-neutral-500">
-        Public sign-in:{" "}
+        {t("staff.publicSignIn")}{" "}
         <Link href="/login" className="text-[#c56a00]">
           /login
         </Link>
@@ -249,11 +249,12 @@ function StaffLoginInner() {
 }
 
 export default function StaffLoginPage() {
+  const { t } = useI18n();
   return (
     <Suspense
       fallback={
         <AuthLayout>
-          <h1 className="mt-6 text-3xl font-semibold">Staff login</h1>
+          <h1 className="mt-6 text-3xl font-semibold">{t("staff.title")}</h1>
           <Spinner />
         </AuthLayout>
       }

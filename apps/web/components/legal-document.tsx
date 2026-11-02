@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { useI18n } from "@/lib/i18n/provider";
 import { Logo } from "./logo";
 
 export type LegalBlock = string | { bullets: string[] };
@@ -19,6 +22,7 @@ export function LegalDocument({
   otherHref: string;
   otherLabel: string;
 }) {
+  const { t } = useI18n();
   return (
     <main className="min-h-screen bg-white text-[#1c140c]">
       <div className="mx-auto max-w-3xl px-5 py-10 sm:px-8">
@@ -28,10 +32,10 @@ export function LegalDocument({
           </Link>
           <Link href="/" className="inline-flex items-center gap-2 rounded-full border border-[#eadcc8] px-4 py-2 text-sm hover:bg-[#fff8ee]">
             <ArrowLeft size={16} />
-            Back
+            {t("legal.back")}
           </Link>
         </div>
-        <p className="mt-8 text-xs uppercase tracking-[0.18em] text-[#a16207]">Legal</p>
+        <p className="mt-8 text-xs uppercase tracking-[0.18em] text-[#a16207]">{t("legal.eyebrow")}</p>
         <h1 className="mt-2 font-serif text-4xl">{title}</h1>
         <p className="mt-3 text-sm text-[#6b6258]">{meta}</p>
         {notice && <p className="mt-6 rounded-2xl border border-[#f0e6d8] bg-[#fff8ee] p-4 text-sm leading-6 text-[#6b6258]">{notice}</p>}
@@ -58,7 +62,7 @@ export function LegalDocument({
         <div className="mt-10 flex flex-wrap items-center gap-4 border-t border-[#f0e6d8] pt-6 text-sm">
           <Link href="/" className="inline-flex items-center gap-2 rounded-full border border-[#eadcc8] px-4 py-2 hover:bg-[#fff8ee]">
             <ArrowLeft size={16} />
-            Back
+            {t("legal.back")}
           </Link>
           <Link href={otherHref} className="text-[#a16207]">
             {otherLabel}
