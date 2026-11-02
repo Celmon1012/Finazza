@@ -30,6 +30,7 @@ router.patch(
         website: z.string().trim().max(160).optional(),
         avatarUrl: z.string().nullable().optional(),
         messagePrivacy: z.enum(["everyone", "followers"]).optional(),
+        locale: z.enum(["en", "zh-HK"]).optional(),
         notificationSettings: z
           .object({
             likes: z.boolean().optional(),
@@ -54,6 +55,7 @@ router.patch(
     if (body.website != null) user.website = body.website;
     if (body.avatarUrl !== undefined) user.avatarUrl = body.avatarUrl;
     if (body.messagePrivacy) user.messagePrivacy = body.messagePrivacy;
+    if (body.locale) user.locale = body.locale;
     if (body.notificationSettings) {
       user.notificationSettings = { ...user.notificationSettings, ...body.notificationSettings };
       user.markModified("notificationSettings");

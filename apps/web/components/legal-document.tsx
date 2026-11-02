@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { useI18n } from "@/lib/i18n/provider";
+import type { LegalBlock, LegalSection } from "@/lib/legal";
 import { Logo } from "./logo";
 
-export type LegalBlock = string | { bullets: string[] };
+export type { LegalBlock };
 
 export function LegalDocument({
   title,
@@ -18,7 +19,7 @@ export function LegalDocument({
   title: string;
   meta: string;
   notice?: string;
-  sections: { heading: string; blocks: LegalBlock[] }[];
+  sections: LegalSection[];
   otherHref: string;
   otherLabel: string;
 }) {

@@ -24,6 +24,7 @@ export function meDto(user: any) {
     location: user.location || "",
     website: user.website || "",
     role: user.role,
+    locale: user.locale === "zh-HK" ? "zh-HK" : "en",
     messagePrivacy: user.messagePrivacy,
     notificationSettings: user.notificationSettings,
     createdAt: user.createdAt,

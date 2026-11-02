@@ -11,6 +11,7 @@ export type Me = PublicUser & {
   location: string;
   website: string;
   role: "user" | "admin";
+  locale: "en" | "zh-HK";
   messagePrivacy: "everyone" | "followers";
   notificationSettings: {
     likes: boolean;

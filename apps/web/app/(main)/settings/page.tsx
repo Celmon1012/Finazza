@@ -100,7 +100,14 @@ export default function SettingsPage() {
             <button
               key={value}
               type="button"
-              onClick={() => setLocale(value as Locale)}
+              onClick={() => {
+                const next = value as Locale;
+                setLocale(next);
+                api("/api/users/me", { method: "PATCH", body: JSON.stringify({ locale: next }) })
+                  .then(() => refreshUser())
+                  .then(() => setMessage(t("settings.languageSaved")))
+                  .catch((err) => setError(err instanceof Error ? err.message : t("settings.saveFailed")));
+              }}
               className={
                 locale === value
                   ? "rounded-2xl border border-[#c56a00] bg-[#fff8ee] px-4 py-3 text-left text-sm font-semibold text-[#c56a00]"

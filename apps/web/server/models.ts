@@ -175,7 +175,14 @@ function stripBookmarkStore(settings: any) {
   const rest = { ...settings };
   delete rest._bookmarks;
   delete rest._portfolioOrder;
+  delete rest._locale;
   return rest;
+}
+
+function localeFrom(row: any) {
+  if (row.locale === "zh-HK" || row.locale === "en") return row.locale;
+  const stored = row.notification_settings?._locale;
+  return stored === "zh-HK" ? "zh-HK" : "en";
 }
 
 function mapUser(row: any) {
@@ -194,6 +201,7 @@ function mapUser(row: any) {
     role: row.role,
     suspended: Boolean(row.suspended),
     messagePrivacy: row.message_privacy || "everyone",
+    locale: localeFrom(row),
     notificationSettings: { ...notificationDefaults, ...stripBookmarkStore(row.notification_settings) },
     bookmarkedPostIds: bookmarkIdsFrom(row.notification_settings),
     portfolioOrderIds: portfolioOrderFrom(row.notification_settings),
@@ -223,6 +231,7 @@ function mapUser(row: any) {
         ...(doc.notificationSettings || notificationDefaults),
         _bookmarks: (doc.bookmarkedPostIds || []).map(String),
         _portfolioOrder: (doc.portfolioOrderIds || []).map(String),
+        _locale: doc.locale === "zh-HK" ? "zh-HK" : "en",
       },
       blocked_user_ids: (doc.blockedUserIds || []).map(idOf),
       muted_user_ids: (doc.mutedUserIds || []).map(idOf),
@@ -309,6 +318,10 @@ async function insertUser(input: any) {
     website: input.website || "",
     role: input.role || "user",
     message_privacy: input.messagePrivacy || "everyone",
+    notification_settings: {
+      ...notificationDefaults,
+      ...(input.locale === "zh-HK" ? { _locale: "zh-HK" } : {}),
+    },
     accepted_terms_at: iso(input.acceptedTermsAt),
   };
   const { data, error } = await table("profiles").insert(row).select("*").single();

@@ -97,7 +97,8 @@ export const en = {
 
   "settings.title": "Settings",
   "settings.language": "Language",
-  "settings.languageHint": "App interface language. Your posts stay as you wrote them.",
+  "settings.languageHint": "App interface language. Saved to your account when you are signed in. Your posts stay as you wrote them.",
+  "settings.languageSaved": "Language preference saved.",
   "settings.english": "English",
   "settings.zhHK": "繁體中文（香港）",
   "settings.profilePhoto": "Profile photo",

@@ -3,6 +3,8 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { io, type Socket } from "socket.io-client";
 import { API_URL, TOKEN_KEY, api } from "./api";
+import { isLocale } from "./i18n";
+import { useI18n } from "./i18n/provider";
 import type { Me } from "./types";
 
 type AuthState = {
@@ -23,9 +25,14 @@ export function getSocket() {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const { setLocale } = useI18n();
   const [user, setUser] = useState<Me | null>(null);
   const [ready, setReady] = useState(false);
   const [badges, setBadges] = useState({ notifications: 0, messages: 0 });
+
+  function applyAccountLocale(next: Me) {
+    if (isLocale(next.locale)) setLocale(next.locale);
+  }
 
   async function refreshBadges() {
     const next = await api<{ notifications: number; messages: number }>("/api/badges");
@@ -35,6 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function refreshUser() {
     const data = await api<{ user: Me }>("/api/auth/me");
     setUser(data.user);
+    applyAccountLocale(data.user);
   }
 
   function connect(token: string) {
@@ -61,6 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     api<{ user: Me }>("/api/auth/me")
       .then((data) => {
         setUser(data.user);
+        applyAccountLocale(data.user);
         connect(token);
         return api<{ notifications: number; messages: number }>("/api/badges");
       })
@@ -102,6 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession: (token, next) => {
         localStorage.setItem(TOKEN_KEY, token);
         setUser(next);
+        applyAccountLocale(next);
         connect(token);
         api<{ notifications: number; messages: number }>("/api/badges")
           .then(setBadges)

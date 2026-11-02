@@ -28,6 +28,7 @@ create table if not exists public.profiles (
   role text not null default 'user' check (role in ('user', 'admin')),
   suspended boolean not null default false,
   message_privacy text not null default 'everyone' check (message_privacy in ('everyone', 'followers')),
+  locale text not null default 'en' check (locale in ('en', 'zh-HK')),
   notification_settings jsonb not null default '{"likes":true,"replies":true,"reposts":true,"follows":true,"mentions":true,"chat":true,"moderation":true}'::jsonb,
   blocked_user_ids uuid[] not null default '{}',
   muted_user_ids uuid[] not null default '{}',
