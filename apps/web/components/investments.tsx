@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Camera, ChevronDown } from "lucide-react";
 import { api, mediaUrl } from "@/lib/api";
+import { useI18n } from "@/lib/i18n/provider";
 import type { Investment } from "@/lib/types";
 import { dateInput, DISCLAIMER, money, parseBuyPrice, percent } from "@/lib/utils";
 import { ProofEditor } from "./proof-editor";
@@ -45,6 +46,7 @@ export function InvestmentEditor({
   onSaved: (investment: Investment) => void;
   onCancel?: () => void;
 }) {
+  const { t } = useI18n();
   const [form, setForm] = useState(() =>
     initial
       ? {
@@ -179,7 +181,7 @@ export function InvestmentEditor({
       {error && <p className="text-sm text-[#ff5d73]">{error}</p>}
       <div className="flex gap-2">
         <Button type="submit" disabled={busy}>
-          {initial ? "Save changes" : "Add record"}
+          {initial ? t("portfolio.saveChanges") : t("portfolio.addRecord")}
         </Button>
         {onCancel && (
           <Button type="button" variant="ghost" onClick={onCancel}>
@@ -333,6 +335,7 @@ export function PortfolioBoard({
   mine: boolean;
   onChange: (items: Investment[]) => void;
 }) {
+  const { t } = useI18n();
   const [editing, setEditing] = useState<Investment | null | "new">(null);
   const [proofItem, setProofItem] = useState<Investment | null>(null);
   const [pickingProof, setPickingProof] = useState(false);
@@ -454,11 +457,11 @@ export function PortfolioBoard({
         </div>
       )}
       {mine && editing && createPortal(
-        <div className="fixed inset-0 z-[80] bg-black/70" role="dialog" aria-modal="true" aria-label={editing === "new" ? "Add holding" : "Edit record"}>
+        <div className="fixed inset-0 z-[80] bg-black/70" role="dialog" aria-modal="true" aria-label={editing === "new" ? t("portfolio.addHolding") : t("portfolio.editRecord")}>
           <button type="button" className="absolute inset-0" aria-label="Close" onClick={closeEditor} />
           <div className="absolute inset-x-0 bottom-0 top-10 z-10 overflow-y-auto overscroll-contain rounded-t-3xl bg-white px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4 sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[90vh] sm:w-full sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl">
             <div className="mb-3 flex items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold">{editing === "new" ? "Add holding" : "Edit record"}</h2>
+              <h2 className="text-lg font-semibold">{editing === "new" ? t("portfolio.addHolding") : t("portfolio.editRecord")}</h2>
               <button type="button" className="text-sm text-neutral-500" onClick={closeEditor}>
                 Close
               </button>
@@ -484,8 +487,8 @@ export function PortfolioBoard({
       )}
       {items.length === 0 && (
         <Empty
-          title="No records yet"
-          body={mine ? "Add a holding, then upload a photo of the receipt. Cover names, account numbers, and addresses before it is public." : "No investment records shared yet."}
+          title={t("portfolio.noRecordsTitle")}
+          body={mine ? t("portfolio.noRecordsMine") : t("portfolio.noRecordsOther")}
         />
       )}
       {items.map((item, index) => (

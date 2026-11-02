@@ -7,6 +7,8 @@ import { PageHeader } from "@/components/shell";
 import { Button, Empty, inputClass, Modal, Spinner } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n/provider";
+import type { MessageKey } from "@/lib/i18n";
 import type { PublicUser, Report } from "@/lib/types";
 import { cn, timeAgo } from "@/lib/utils";
 
@@ -35,31 +37,32 @@ type AdminPost = {
 
 type AdminRoom = { id: string; name: string; slug: string | null; description: string };
 
-const tabs: { id: Tab; label: string }[] = [
-  { id: "overview", label: "Overview" },
-  { id: "people", label: "People" },
-  { id: "posts", label: "Posts" },
-  { id: "rooms", label: "Rooms" },
-  { id: "reports", label: "Reports" },
+const tabs: { id: Tab; labelKey: MessageKey }[] = [
+  { id: "overview", labelKey: "admin.overview" },
+  { id: "people", labelKey: "admin.people" },
+  { id: "posts", labelKey: "admin.posts" },
+  { id: "rooms", labelKey: "admin.rooms" },
+  { id: "reports", labelKey: "admin.reports" },
 ];
 
 export default function AdminPage() {
   const { user } = useAuth();
+  const { t } = useI18n();
   const [tab, setTab] = useState<Tab>("overview");
   const [error, setError] = useState("");
 
   if (user?.role !== "admin") {
     return (
       <div>
-        <PageHeader title="Admin" subtitle="Site management" />
-        <p className="px-4 py-8 text-sm text-neutral-500">This page is only for the site admins.</p>
+        <PageHeader title={t("admin.title")} subtitle={t("admin.subtitleShort")} />
+        <p className="px-4 py-8 text-sm text-neutral-500">{t("admin.onlyAdmins")}</p>
       </div>
     );
   }
 
   return (
     <div>
-      <PageHeader title="Admin" subtitle="People, posts, rooms, and reports" />
+      <PageHeader title={t("admin.title")} subtitle={t("admin.subtitle")} />
       <div className="flex gap-1 overflow-x-auto border-b border-[#f0e6d8] px-3 py-2">
         {tabs.map((item) => (
           <button
@@ -74,7 +77,7 @@ export default function AdminPage() {
               setTab(item.id);
             }}
           >
-            {item.label}
+            {t(item.labelKey)}
           </button>
         ))}
       </div>
@@ -89,6 +92,7 @@ export default function AdminPage() {
 }
 
 function OverviewTab({ onError, onOpen }: { onError: (message: string) => void; onOpen: (tab: Tab) => void }) {
+  const { t } = useI18n();
   const [stats, setStats] = useState<Overview | null>(null);
 
   useEffect(() => {
@@ -97,7 +101,7 @@ function OverviewTab({ onError, onOpen }: { onError: (message: string) => void; 
       .catch((err) => onError(err instanceof Error ? err.message : "Could not load the overview"));
   }, [onError]);
 
-  if (!stats) return <Spinner label="Loading overview" />;
+  if (!stats) return <Spinner label={t("admin.loadingOverview")} />;
 
   const cards: {
     tab: Tab;
@@ -110,36 +114,36 @@ function OverviewTab({ onError, onOpen }: { onError: (message: string) => void; 
   }[] = [
     {
       tab: "people",
-      label: "People",
+      label: t("admin.people"),
       value: stats.people,
-      hint: "Accounts",
+      hint: t("admin.accounts"),
       icon: Users,
       wash: "bg-[#f6b429]/25",
       iconClass: "bg-[#fff4e0] text-[#a35400]",
     },
     {
       tab: "posts",
-      label: "Posts",
+      label: t("admin.posts"),
       value: stats.posts,
-      hint: "Visible now",
+      hint: t("admin.visibleNow"),
       icon: SquarePen,
       wash: "bg-[#f0a020]/15",
       iconClass: "bg-white text-neutral-800 ring-1 ring-[#f0e6d8]",
     },
     {
       tab: "rooms",
-      label: "Topic rooms",
+      label: t("admin.topicRooms"),
       value: stats.rooms,
-      hint: "Conversations",
+      hint: t("admin.conversations"),
       icon: MessagesSquare,
       wash: "bg-[#f6b429]/20",
       iconClass: "bg-[#fff4e0] text-[#a35400]",
     },
     {
       tab: "reports",
-      label: "Open reports",
+      label: t("admin.openReports"),
       value: stats.openReports,
-      hint: stats.openReports ? "Need a look" : "All clear",
+      hint: stats.openReports ? t("admin.needLook") : t("admin.allClear"),
       icon: Flag,
       wash: stats.openReports ? "bg-[#ff5d73]/20" : "bg-emerald-400/15",
       iconClass: stats.openReports ? "bg-[#fff0f2] text-[#d6334d]" : "bg-emerald-50 text-emerald-700",

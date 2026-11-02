@@ -26,6 +26,7 @@ import {
 import { api, mediaUrl } from "@/lib/api";
 import { cachedMessages, fetchMessages, prefetchMessages, rememberMessages } from "@/lib/chat-cache";
 import { getSocket, useAuth } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n/provider";
 import type { ChatMessage, Conversation, PublicUser } from "@/lib/types";
 import { cn, timeAgo } from "@/lib/utils";
 import { ReportButton } from "./report-button";
@@ -81,6 +82,7 @@ function joinsPrevious(message: ChatMessage, previous?: ChatMessage) {
 
 export function ChatView() {
   const { user, refreshBadges } = useAuth();
+  const { t } = useI18n();
   const router = useRouter();
   const pathname = usePathname() || "";
   const routeId = pathname.startsWith("/chat/") ? decodeURIComponent(pathname.slice("/chat/".length).split("/")[0] || "") : "";
@@ -448,7 +450,7 @@ export function ChatView() {
       <section className={cn("flex w-full min-h-0 flex-col border-neutral-200 md:w-[360px] md:shrink-0 md:border-r xl:w-[380px]", showThread && "hidden md:flex")}>
         <div className="page-wash sticky top-0 z-10 space-y-3 border-b border-[#f0e6d8] px-4 pb-3 pt-4">
           <div className="flex items-center justify-between gap-2">
-            <h1 className="truncate text-xl font-bold tracking-tight">Messages</h1>
+            <h1 className="truncate text-xl font-bold tracking-tight">{t("chat.messages")}</h1>
             <div className="flex shrink-0 items-center gap-1.5">
               <button
                 type="button"
@@ -465,15 +467,15 @@ export function ChatView() {
                 onClick={() => setComposerMode("dm")}
               >
                 <SquarePen size={14} />
-                New Message
+                {t("chat.newChat")}
               </button>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-1 rounded-full bg-neutral-100 p-1 text-sm">
             {(
               [
-                ["inbox", "Inbox", unread(inbox)],
-                ["topic", "Rooms", unread(rooms)],
+                ["inbox", t("chat.messages"), unread(inbox)],
+                ["topic", t("admin.rooms"), unread(rooms)],
               ] as const
             ).map(([key, label, count]) => (
               <button
@@ -494,7 +496,7 @@ export function ChatView() {
             <Search size={15} className="shrink-0 text-neutral-400" />
             <input
               className="h-9 w-full bg-transparent text-sm outline-none placeholder:text-neutral-400 focus-visible:shadow-none"
-              placeholder={scope === "topic" ? "Search rooms" : "Search people and groups"}
+              placeholder={scope === "topic" ? t("chat.searchRooms") : t("chat.searchPeople")}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
@@ -508,19 +510,19 @@ export function ChatView() {
 
         <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
           {loading && list.length === 0 ? (
-            <Spinner label="Loading chats" />
+            <Spinner label={t("common.loading")} />
           ) : list.length === 0 ? (
             <div className="px-4 py-12 text-center">
               <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-[#fff4e0] text-[#c56a00]">
                 {scope === "topic" ? <Hash size={22} /> : <MessageCircle size={22} />}
               </span>
-              <p className="mt-3 font-semibold">{needle ? "No matches" : scope === "topic" ? "No rooms yet" : "No conversations yet"}</p>
+              <p className="mt-3 font-semibold">{needle ? t("chat.noMatches") : scope === "topic" ? t("chat.noRooms") : t("chat.noConversations")}</p>
               <p className="mt-1 text-sm text-neutral-500">
-                {needle ? "Try another name." : scope === "topic" ? "Public rooms will show up here." : "Start a direct message or a group with people you follow."}
+                {needle ? t("chat.tryAnother") : scope === "topic" ? t("chat.roomsHint") : t("chat.dmHint")}
               </p>
               {!needle && scope === "inbox" && (
                 <Button type="button" className="mt-4" onClick={() => setComposerMode("dm")}>
-                  <SquarePen size={15} /> New Message
+                  <SquarePen size={15} /> {t("chat.newChat")}
                 </Button>
               )}
             </div>
@@ -590,7 +592,7 @@ export function ChatView() {
               </span>
               <h2 className="mt-5 text-2xl font-bold tracking-tight">Your messages</h2>
               <p className="mt-2 text-sm leading-6 text-neutral-500">
-                Pick a conversation on the left, or start a new one with the buttons above the list. Topic rooms are public. Direct messages and groups stay private to their members.
+                {t("chat.pickHint")}
               </p>
             </div>
           </div>
@@ -658,7 +660,7 @@ export function ChatView() {
               ) : messages.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center px-6 text-center">
                   {active && <ConversationAvatar convo={active} viewerId={user?.id} size={72} />}
-                  <p className="mt-4 text-lg font-semibold">{active ? titleOf(active) : "New chat"}</p>
+                  <p className="mt-4 text-lg font-semibold">{active ? titleOf(active) : t("chat.newChat")}</p>
                   <p className="mt-1 max-w-xs text-sm text-neutral-500">
                     {active?.type === "dm" ? `This is the start of your conversation with ${active.name}. Say hello.` : "No messages yet. Be the first to say something."}
                   </p>

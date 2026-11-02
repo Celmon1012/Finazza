@@ -9,10 +9,12 @@ import { GoogleButton } from "@/components/google-button";
 import { Button, Field, inputClass } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n/provider";
 import type { Me } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 function NameHelp() {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const panelId = useId();
   const root = useRef<HTMLDivElement>(null);
@@ -38,7 +40,7 @@ function NameHelp() {
       <button
         type="button"
         className="grid h-5 w-5 place-items-center rounded-full text-neutral-500 hover:text-[#c56a00]"
-        aria-label="Difference between display name and username"
+        aria-label={t("auth.nameHelpAria")}
         aria-expanded={open}
         aria-controls={panelId}
         onClick={() => setOpen((current) => !current)}
@@ -47,13 +49,9 @@ function NameHelp() {
       </button>
       {open && (
         <div id={panelId} role="note" className="absolute left-0 top-7 z-20 w-[min(22rem,calc(100vw-3rem))] rounded-2xl border border-neutral-200 bg-white p-4 text-sm leading-6 text-neutral-700 shadow-[0_18px_50px_-28px_rgba(28,20,12,0.45)]">
-          <p>
-            A <span className="font-semibold text-neutral-950">username</span> is your unique handle, like @james_zhang. Only one account can have it. People use it to @mention you, and it is the address of your profile.
-          </p>
-          <p className="mt-3">
-            A <span className="font-semibold text-neutral-950">display name</span> is the friendly name shown in bold, like James Zhang. It does not have to be unique, so it can include spaces and emoji. You can change it later in Settings. It can be up to 40 characters.
-          </p>
-          <p className="mt-3 text-neutral-500">For example, Alex Morgan is the display name and @alex is the username.</p>
+          <p>{t("auth.nameHelpUsername")}</p>
+          <p className="mt-3">{t("auth.nameHelpDisplay")}</p>
+          <p className="mt-3 text-neutral-500">{t("auth.nameHelpExample")}</p>
         </div>
       )}
     </div>
@@ -62,6 +60,7 @@ function NameHelp() {
 
 export default function RegisterPage() {
   const { setSession } = useAuth();
+  const { t } = useI18n();
   const router = useRouter();
   const [form, setForm] = useState({ displayName: "", username: "", email: "", password: "", acceptedTerms: false });
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -72,7 +71,7 @@ export default function RegisterPage() {
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     if (confirmPassword !== form.password) {
-      setError("The two passwords do not match");
+      setError(t("auth.passwordMismatch"));
       return;
     }
     setBusy(true);
@@ -85,7 +84,7 @@ export default function RegisterPage() {
       setSession(result.token, result.user);
       router.push("/home");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not create the account");
+      setError(err instanceof Error ? err.message : t("auth.registerFailed"));
     } finally {
       setBusy(false);
     }
@@ -94,28 +93,30 @@ export default function RegisterPage() {
   return (
     <AuthLayout>
       <div>
-        <h1 className="mt-6 text-3xl font-semibold">Create your account</h1>
-        <p className="mt-1 text-sm text-neutral-500">Skip the password — continue with Google, or register with email below.</p>
+        <h1 className="mt-6 text-3xl font-semibold">{t("auth.registerTitle")}</h1>
+        <p className="mt-1 text-sm text-neutral-500">{t("auth.registerHintGoogle")}</p>
         <div className="mt-6">
-          <GoogleButton label="Continue with Google" />
+          <GoogleButton />
         </div>
         <form className="mt-4 space-y-3" onSubmit={submit}>
           <div className="space-y-1.5 text-sm">
             <div className="flex items-center gap-1.5 text-neutral-600">
-              <label htmlFor="display-name">Display name</label>
+              <label htmlFor="display-name">{t("auth.displayName")}</label>
               <NameHelp />
             </div>
             <input id="display-name" className={inputClass} maxLength={40} value={form.displayName} onChange={(event) => setForm({ ...form, displayName: event.target.value })} required />
           </div>
           <div className="space-y-1.5 text-sm">
-            <label htmlFor="username" className="text-neutral-600">Username</label>
+            <label htmlFor="username" className="text-neutral-600">
+              {t("auth.username")}
+            </label>
             <input
               id="username"
               className={inputClass}
               minLength={3}
               maxLength={20}
               pattern="[a-z0-9_]{3,20}"
-              title="3–20 characters: lowercase letters, numbers, or underscores"
+              title={t("auth.usernameTitle")}
               autoCapitalize="none"
               autoCorrect="off"
               spellCheck={false}
@@ -123,18 +124,18 @@ export default function RegisterPage() {
               onChange={(event) => setForm({ ...form, username: event.target.value.toLowerCase() })}
               required
             />
-            <p className="text-xs leading-5 text-neutral-500">
-              3–20 characters. Letters, numbers, and underscores only. No spaces. It is saved in lowercase and has to be unique. Reserved names such as admin, support, and finazza are not available.
-            </p>
+            <p className="text-xs leading-5 text-neutral-500">{t("auth.usernameHint")}</p>
           </div>
-          <Field label="Email">
+          <Field label={t("auth.email")}>
             <input className={inputClass} type="email" autoComplete="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} required />
           </Field>
-          <Field label="Password">
+          <Field label={t("auth.password")}>
             <input className={inputClass} type="password" autoComplete="new-password" minLength={8} value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} required />
           </Field>
           <div className="space-y-1.5 text-sm">
-            <label htmlFor="confirm-password" className="text-neutral-600">Confirm password</label>
+            <label htmlFor="confirm-password" className="text-neutral-600">
+              {t("auth.confirmPassword")}
+            </label>
             <input
               id="confirm-password"
               className={cn(inputClass, mismatch && "border-[#ff5d73]")}
@@ -146,26 +147,37 @@ export default function RegisterPage() {
               required
             />
             {mismatch ? (
-              <p className="text-xs text-[#ff5d73]">The two passwords do not match.</p>
+              <p className="text-xs text-[#ff5d73]">{t("auth.passwordMismatchDot")}</p>
             ) : confirmPassword && confirmPassword === form.password ? (
-              <p className="text-xs text-[#1f9d55]">Passwords match.</p>
+              <p className="text-xs text-[#1f9d55]">{t("auth.passwordMatch")}</p>
             ) : (
-              <p className="text-xs text-neutral-500">Type the same password again.</p>
+              <p className="text-xs text-neutral-500">{t("auth.passwordRetype")}</p>
             )}
           </div>
           <label className="flex items-start gap-2 text-sm text-neutral-600">
             <input type="checkbox" className="mt-1" checked={form.acceptedTerms} onChange={(event) => setForm({ ...form, acceptedTerms: event.target.checked })} required />
             <span>
-              I agree to the <Link href="/terms" className="text-[#c56a00]">Terms of Use</Link> and <Link href="/privacy" className="text-[#c56a00]">Privacy Policy</Link>. I understand posts are not financial advice and proof of investment is not verified.
+              {t("auth.acceptTermsLead")}{" "}
+              <Link href="/terms" className="text-[#c56a00]">
+                {t("auth.terms")}
+              </Link>{" "}
+              {t("auth.acceptTermsMid")}{" "}
+              <Link href="/privacy" className="text-[#c56a00]">
+                {t("auth.privacy")}
+              </Link>
+              {t("auth.acceptTermsTail")}
             </span>
           </label>
           {error && <p className="text-sm text-[#ff5d73]">{error}</p>}
           <Button type="submit" className="w-full" disabled={busy || !form.acceptedTerms || mismatch}>
-            Create account
+            {t("auth.create")}
           </Button>
         </form>
         <p className="mt-4 text-sm text-neutral-500">
-          Already registered? <Link href="/login" className="text-[#c56a00]">Sign in</Link>
+          {t("auth.alreadyRegistered")}{" "}
+          <Link href="/login" className="text-[#c56a00]">
+            {t("auth.signIn")}
+          </Link>
         </p>
       </div>
     </AuthLayout>
