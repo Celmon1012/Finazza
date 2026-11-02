@@ -25,9 +25,18 @@ export default function PostPage() {
     });
   }
 
+  const pureRepost = Boolean(post?.repostOf && !post.text && post.attachments.length === 0);
+
   useEffect(() => {
     load().catch((err) => setError(err instanceof Error ? err.message : "Post unavailable"));
   }, [id]);
+
+  useEffect(() => {
+    // Reposts are boost-only — open the original post instead of commenting here.
+    if (pureRepost && post?.repostOf?.id) {
+      router.replace(`/post/${post.repostOf.id}`);
+    }
+  }, [pureRepost, post?.repostOf?.id, router]);
 
   return (
     <div>
@@ -39,7 +48,7 @@ export default function PostPage() {
       </header>
       {error && <p className="px-4 py-6 text-sm text-[#ff5d73]">{error}</p>}
       {!post && !error && <Spinner />}
-      {post && (
+      {post && !pureRepost && (
         <PostCard
           post={post}
           onChange={load}
@@ -49,29 +58,32 @@ export default function PostPage() {
           }}
         />
       )}
-      <Composer
-        replyTo={id}
-        placeholder="Post your reply"
-        onPosted={(reply, replaceId) => {
-          setReplies((current) => applyPosted(current, reply, replaceId));
-          if (!replaceId && reply) setPost((current) => (current ? { ...current, replyCount: current.replyCount + 1 } : current));
-          if (replaceId && !reply) setPost((current) => (current ? { ...current, replyCount: Math.max(0, current.replyCount - 1) } : current));
-        }}
-      />
-      {replies.map((reply) => (
-        <PostCard
-          key={reply.id}
-          post={reply}
-          onRemoved={(replyId) => {
-            setReplies((current) => applyRemoved(current, replyId));
-            setPost((current) => (current ? { ...current, replyCount: Math.max(0, current.replyCount - 1) } : current));
-          }}
-          onRestored={(item) => {
-            setReplies((current) => applyRestored(current, item));
-            setPost((current) => (current ? { ...current, replyCount: current.replyCount + 1 } : current));
+      {post && !pureRepost && (
+        <Composer
+          replyTo={id}
+          placeholder="Post your reply"
+          onPosted={(reply, replaceId) => {
+            setReplies((current) => applyPosted(current, reply, replaceId));
+            if (!replaceId && reply) setPost((current) => (current ? { ...current, replyCount: current.replyCount + 1 } : current));
+            if (replaceId && !reply) setPost((current) => (current ? { ...current, replyCount: Math.max(0, current.replyCount - 1) } : current));
           }}
         />
-      ))}
+      )}
+      {!pureRepost &&
+        replies.map((reply) => (
+          <PostCard
+            key={reply.id}
+            post={reply}
+            onRemoved={(replyId) => {
+              setReplies((current) => applyRemoved(current, replyId));
+              setPost((current) => (current ? { ...current, replyCount: Math.max(0, current.replyCount - 1) } : current));
+            }}
+            onRestored={(item) => {
+              setReplies((current) => applyRestored(current, item));
+              setPost((current) => (current ? { ...current, replyCount: current.replyCount + 1 } : current));
+            }}
+          />
+        ))}
     </div>
   );
 }

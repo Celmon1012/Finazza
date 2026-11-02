@@ -86,16 +86,18 @@ router.post(
     if (!body.text && body.attachments.length === 0 && !body.repostOf) {
       throw new HttpError(400, "Write something or attach an image");
     }
+    // Reposts are boost-only (no quote/comment). Use POST /api/posts/:id/repost.
+    if (body.repostOf) {
+      throw new HttpError(400, "Reposts cannot include a comment. Use the repost button instead.");
+    }
     if (body.text) assertCleanText(body.text);
 
     let replyParent: any = null;
     if (body.replyTo) {
-      replyParent = await Post.findOne({ _id: body.replyTo, deletedAt: null });
+      replyParent = await Post.findOne({ _id: body.replyTo, deletedAt: null }).populate("repostOf");
       if (!replyParent) throw new HttpError(404, "The post you are replying to is unavailable");
-    }
-    if (body.repostOf) {
-      const original = await Post.findOne({ _id: body.repostOf, deletedAt: null });
-      if (!original || original.repostOf) throw new HttpError(400, "That post cannot be quoted");
+      const pureRepost = Boolean(replyParent.repostOf && !replyParent.text && !(replyParent.attachments || []).length);
+      if (pureRepost) throw new HttpError(400, "You cannot reply to a repost. Open the original post to comment.");
     }
 
     const post = await Post.create({
@@ -136,20 +138,6 @@ router.post(
           text: `${req.user!.displayName} replied to your post`,
           link: `/post/${replyParent.id}`,
         });
-      }
-
-      if (body.repostOf && body.text) {
-        await Post.updateOne({ _id: body.repostOf }, { $inc: { repostCount: 1 } });
-        const original = await Post.findById(body.repostOf);
-        if (original) {
-          await createNotification({
-            recipient: original.author,
-            actor: req.user!._id,
-            type: "repost",
-            text: `${req.user!.displayName} quoted your post`,
-            link: `/post/${post.id}`,
-          });
-        }
       }
 
       await notifyMentions(body.text, req.user, `/post/${post.id}`, [

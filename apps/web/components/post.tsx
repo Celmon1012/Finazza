@@ -279,12 +279,17 @@ export function PostCard({
           <AttachmentGrid files={post.attachments} />
           {post.repostOf && <Embedded post={post.repostOf} />}
           <div className="mt-3 flex max-w-md items-center justify-between text-neutral-500">
-            {pending ? (
+            {/* Pure reposts are boost-only — no comments on the repost itself. */}
+            {pureRepost ? (
+              <span className="inline-flex items-center gap-1.5 text-sm text-neutral-300" title="Reposts cannot be commented on" aria-hidden>
+                <MessageCircle size={16} />
+              </span>
+            ) : pending ? (
               <span className="inline-flex items-center gap-1.5 text-sm">
                 <MessageCircle size={16} /> {post.replyCount || ""}
               </span>
             ) : (
-              <Link href={`/post/${pureRepost && post.repostOf ? post.repostOf.id : post.id}`} className="inline-flex items-center gap-1.5 text-sm hover:text-[#c56a00]">
+              <Link href={`/post/${post.id}`} className="inline-flex items-center gap-1.5 text-sm hover:text-[#c56a00]">
                 <MessageCircle size={16} /> {post.replyCount || ""}
               </Link>
             )}
