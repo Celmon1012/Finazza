@@ -5,7 +5,18 @@ const unusable =
   configured.includes("localhost") ||
   configured.includes("127.0.0.1");
 
-export const API_URL = process.env.NODE_ENV === "production" && unusable ? "" : configured || "http://localhost:4000";
+function hostedApiUrl() {
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    if (host === "finazza.app" || host === "www.finazza.app" || host.endsWith(".vercel.app")) {
+      return "";
+    }
+  }
+  if (process.env.NODE_ENV === "production" && unusable) return "";
+  return configured || (process.env.NODE_ENV === "production" ? "" : "http://localhost:4000");
+}
+
+export const API_URL = hostedApiUrl();
 export const TOKEN_KEY = "finazza_token";
 
 export class ApiError extends Error {

@@ -12,16 +12,30 @@ import metaRoutes from "./routes/meta.js";
 import postRoutes from "./routes/posts.js";
 import userRoutes from "./routes/users.js";
 
+function withWww(origin: string) {
+  try {
+    const url = new URL(origin);
+    url.hostname = url.hostname.startsWith("www.") ? url.hostname.slice(4) : `www.${url.hostname}`;
+    return url.origin;
+  } catch {
+    return "";
+  }
+}
+
 function isAllowedOrigin(origin: string | undefined) {
   if (!origin) return true;
-  if (
-    origin === config.clientOrigin ||
-    origin === "http://localhost:3000" ||
-    origin === "http://127.0.0.1:3000" ||
-    origin === "https://finazza.vercel.app"
-  ) {
-    return true;
-  }
+  const allowed = new Set(
+    [
+      config.clientOrigin,
+      withWww(config.clientOrigin),
+      "http://localhost:3000",
+      "http://127.0.0.1:3000",
+      "https://finazza.app",
+      "https://www.finazza.app",
+      "https://finazza.vercel.app",
+    ].filter(Boolean),
+  );
+  if (allowed.has(origin)) return true;
   try {
     return new URL(origin).hostname.endsWith(".vercel.app");
   } catch {
