@@ -1,4 +1,4 @@
-import type { LegalDoc } from "./types";
+import type { LegalDoc } from "@/lib/legal/types";
 
 export const termsZhHK: LegalDoc = {
   title: "使用條款",
