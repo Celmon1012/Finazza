@@ -78,10 +78,11 @@ router.post(
       })
       .parse(req.body);
     const user = await User.findOne({ email: body.email.toLowerCase() }).select("+passwordHash");
-    if (!user || user.suspended) throw new HttpError(401, "Email or password is incorrect");
+    if (!user) throw new HttpError(401, "Email or password is incorrect");
     if (!user.passwordHash) throw new HttpError(401, "This account uses Google sign-in. Continue with Google instead.");
     const match = await bcrypt.compare(body.password, user.passwordHash);
     if (!match) throw new HttpError(401, "Email or password is incorrect");
+    if (user.suspended) throw new HttpError(403, "You are currently suspended");
     await syncSiteAdmin(user);
     res.json({ token: signToken(String(user._id)), user: meDto(user) });
   }),

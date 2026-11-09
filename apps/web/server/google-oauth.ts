@@ -127,7 +127,7 @@ export async function upsertGoogleUser(profile: GoogleProfile) {
   if (!user) user = await User.findOne({ email: profile.email });
 
   if (user) {
-    if (user.suspended) throw new HttpError(403, "This account is suspended.");
+    if (user.suspended) throw new HttpError(403, "You are currently suspended");
     if (!user.googleSub) {
       user.googleSub = profile.sub;
       if (!user.avatarUrl && profile.picture) user.avatarUrl = profile.picture;

@@ -18,7 +18,10 @@ function LoginForm() {
   const search = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState(search?.get("error") || "");
+  const [error, setError] = useState(() => {
+    const raw = search?.get("error") || "";
+    return /currently suspended/i.test(raw) ? t("auth.suspended") : raw;
+  });
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -37,7 +40,8 @@ function LoginForm() {
       setSession(result.token, result.user);
       router.push("/home");
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("auth.signInFailed"));
+      const raw = err instanceof Error ? err.message : "";
+      setError(/currently suspended/i.test(raw) ? t("auth.suspended") : raw || t("auth.signInFailed"));
     } finally {
       setBusy(false);
     }

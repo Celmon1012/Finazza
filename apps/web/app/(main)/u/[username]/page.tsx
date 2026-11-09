@@ -6,12 +6,12 @@ import { Suspense, useEffect, useState } from "react";
 import { PortfolioBoard } from "@/components/investments";
 import { PostCard } from "@/components/post";
 import { ReportButton } from "@/components/report-button";
-import { Avatar, AvatarPicker, Button, Spinner } from "@/components/ui";
+import { Avatar, AvatarPicker, Button, Field, Modal, Spinner, inputClass } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n/provider";
 import { applyRemoved, applyRestored, onlyFeedPosts } from "@/lib/posts-sync";
-import type { Conversation, Investment, Post, Profile } from "@/lib/types";
+import type { Conversation, Investment, Post, Profile, PublicUser } from "@/lib/types";
 
 export default function ProfilePage() {
   return (
@@ -34,6 +34,14 @@ function ProfileScreen() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [error, setError] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editError, setEditError] = useState("");
+  const [draft, setDraft] = useState({ displayName: "", bio: "", location: "", website: "" });
+  const [listKind, setListKind] = useState<"followers" | "following" | null>(null);
+  const [listPeople, setListPeople] = useState<PublicUser[]>([]);
+  const [listLoading, setListLoading] = useState(false);
+  const [listError, setListError] = useState("");
 
   async function load() {
     const data = await api<{ profile: Profile }>(`/api/users/${username}`);
@@ -85,6 +93,50 @@ function ProfileScreen() {
     await load();
   }
 
+  function openEditor() {
+    if (!profile) return;
+    setDraft({
+      displayName: profile.displayName,
+      bio: profile.bio || "",
+      location: profile.location || "",
+      website: profile.website || "",
+    });
+    setEditError("");
+    setEditing(true);
+  }
+
+  async function saveProfile(event: React.FormEvent) {
+    event.preventDefault();
+    if (!profile) return;
+    setSaving(true);
+    setEditError("");
+    try {
+      await api("/api/users/me", { method: "PATCH", body: JSON.stringify(draft) });
+      setProfile({ ...profile, ...draft });
+      await refreshUser();
+      setEditing(false);
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : t("settings.saveFailed"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function openFollowList(kind: "followers" | "following") {
+    setListKind(kind);
+    setListPeople([]);
+    setListError("");
+    setListLoading(true);
+    try {
+      const data = await api<{ users: PublicUser[] }>(`/api/users/${username}/${kind}`);
+      setListPeople(data.users);
+    } catch (err) {
+      setListError(err instanceof Error ? err.message : t("profile.listUnavailable"));
+    } finally {
+      setListLoading(false);
+    }
+  }
+
   async function message() {
     const result = await api<{ conversation: Conversation }>("/api/conversations", {
       method: "POST",
@@ -116,9 +168,9 @@ function ProfileScreen() {
           )}
           <div className="flex flex-wrap justify-end gap-2">
             {mine ? (
-              <Link href="/settings" className="inline-flex h-10 shrink-0 items-center rounded-full border border-neutral-300 px-4 text-sm">
+              <Button variant="outline" onClick={openEditor}>
                 {t("profile.edit")}
-              </Link>
+              </Button>
             ) : (
               <>
                 <Button variant={profile.isFollowing ? "outline" : "primary"} onClick={follow}>
@@ -133,9 +185,13 @@ function ProfileScreen() {
         </div>
         <h1 className="mt-3 text-2xl font-semibold">{profile.displayName}</h1>
         <p className="text-neutral-500">@{profile.username}</p>
-        <p className="mt-3 text-sm">
-          <span className="font-semibold">{profile.followingCount}</span> <span className="text-neutral-500">{t("profile.followingLabel")}</span>
-          <span className="ml-4 font-semibold">{profile.followersCount}</span> <span className="text-neutral-500">{t("profile.followersLabel")}</span>
+        <p className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+          <button type="button" className="hover:underline" onClick={() => openFollowList("following")}>
+            <span className="font-semibold">{profile.followingCount}</span> <span className="text-neutral-500">{t("profile.followingLabel")}</span>
+          </button>
+          <button type="button" className="hover:underline" onClick={() => openFollowList("followers")}>
+            <span className="font-semibold">{profile.followersCount}</span> <span className="text-neutral-500">{t("profile.followersLabel")}</span>
+          </button>
         </p>
         {!mine && (
           <div className="mt-3 flex gap-3 text-xs">
@@ -193,7 +249,14 @@ function ProfileScreen() {
       {tab === "profile" && (
         <>
           <section className="border-b border-neutral-200 px-4 py-5">
-            <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-neutral-500">{t("profile.personalDesc")}</h2>
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-neutral-500">{t("profile.personalDesc")}</h2>
+              {mine && (
+                <button type="button" className="text-sm text-[#c56a00]" onClick={openEditor}>
+                  {t("profile.edit")}
+                </button>
+              )}
+            </div>
             <p className="mt-3 whitespace-pre-wrap">{profile.bio || (mine ? t("profile.noBioMine") : t("profile.noBio"))}</p>
           </section>
           <section className="border-b border-neutral-200 px-4 py-5">
@@ -225,6 +288,59 @@ function ProfileScreen() {
             </dl>
           </section>
         </>
+      )}
+
+      {editing && (
+        <Modal title={t("profile.edit")} onClose={() => setEditing(false)}>
+          <form className="space-y-3" onSubmit={saveProfile}>
+            <Field label={t("settings.displayName")}>
+              <input className={inputClass} value={draft.displayName} onChange={(event) => setDraft({ ...draft, displayName: event.target.value })} />
+            </Field>
+            <Field label={t("settings.bio")}>
+              <textarea className={inputClass} maxLength={160} value={draft.bio} onChange={(event) => setDraft({ ...draft, bio: event.target.value })} />
+            </Field>
+            <Field label={t("settings.location")}>
+              <input className={inputClass} value={draft.location} onChange={(event) => setDraft({ ...draft, location: event.target.value })} />
+            </Field>
+            <Field label={t("settings.website")}>
+              <input className={inputClass} placeholder="https://" value={draft.website} onChange={(event) => setDraft({ ...draft, website: event.target.value })} />
+            </Field>
+            {editError && <p className="text-sm text-[#ff5d73]">{editError}</p>}
+            <Button type="submit" disabled={saving}>
+              {saving ? t("settings.saving") : t("settings.saveProfile")}
+            </Button>
+          </form>
+        </Modal>
+      )}
+
+      {listKind && (
+        <Modal title={listKind === "followers" ? t("profile.followersLabel") : t("profile.followingLabel")} onClose={() => setListKind(null)}>
+          {listLoading ? (
+            <Spinner />
+          ) : listError ? (
+            <p className="text-sm text-[#ff5d73]">{listError}</p>
+          ) : listPeople.length === 0 ? (
+            <p className="text-sm text-neutral-500">{listKind === "followers" ? t("profile.noFollowers") : t("profile.noFollowing")}</p>
+          ) : (
+            <ul className="max-h-[60vh] space-y-1 overflow-y-auto">
+              {listPeople.map((person) => (
+                <li key={person.id}>
+                  <Link
+                    href={`/u/${person.username}`}
+                    className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-neutral-100"
+                    onClick={() => setListKind(null)}
+                  >
+                    <Avatar name={person.displayName} url={person.avatarUrl} size={36} />
+                    <span>
+                      <span className="block text-sm font-semibold">{person.displayName}</span>
+                      <span className="block text-xs text-neutral-500">@{person.username}</span>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Modal>
       )}
 
       {tab === "investment" && (

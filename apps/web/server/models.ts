@@ -256,7 +256,13 @@ function mapUser(row: any) {
 
 async function loadUsers(filter: any, opts: QueryOpts) {
   let query = table("profiles").select("*");
-  if (typeof filter._id === "string" || (filter._id && filter._id._id)) query = query.eq("id", idOf(filter._id));
+  if (filter._id?.$in) {
+    const ids = filter._id.$in.map(idOf).filter(Boolean);
+    if (!ids.length) return [];
+    query = query.in("id", ids);
+  } else if (typeof filter._id === "string" || (filter._id && filter._id._id)) {
+    query = query.eq("id", idOf(filter._id));
+  }
   if (filter._id?.$ne) query = query.neq("id", idOf(filter._id.$ne));
   if (typeof filter.email === "string") query = query.eq("email", filter.email.toLowerCase());
   if (typeof filter.googleSub === "string") query = query.eq("google_sub", filter.googleSub);
@@ -384,6 +390,7 @@ async function loadFollows(filter: any, opts: QueryOpts) {
   let query = table("follows").select("*");
   if (filter.follower) query = query.eq("follower_id", idOf(filter.follower));
   if (filter.following) query = query.eq("following_id", idOf(filter.following));
+  query = query.order("created_at", { ascending: opts.sort?.createdAt === 1 });
   query = windowed(query, opts);
   const { data, error } = await query;
   fail(error);

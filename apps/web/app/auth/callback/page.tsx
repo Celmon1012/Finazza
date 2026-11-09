@@ -17,7 +17,7 @@ function CallbackInner() {
   const search = useSearchParams();
   const code = search?.get("code") || "";
   const errorParam = search?.get("error") || "";
-  const [error, setError] = useState(errorParam);
+  const [error, setError] = useState(/currently suspended/i.test(errorParam) ? t("auth.suspended") : errorParam);
 
   useEffect(() => {
     if (errorParam) return;
@@ -36,7 +36,10 @@ function CallbackInner() {
         router.replace("/home");
       })
       .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : t("auth.googleFailed"));
+        if (!cancelled) {
+          const raw = err instanceof Error ? err.message : "";
+          setError(/currently suspended/i.test(raw) ? t("auth.suspended") : raw || t("auth.googleFailed"));
+        }
       });
     return () => {
       cancelled = true;

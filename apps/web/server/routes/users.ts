@@ -148,6 +148,45 @@ router.get(
 );
 
 router.get(
+  "/:username/followers",
+  wrap(async (req, res) => {
+    const people = await followPeople(req, "followers");
+    res.json({ users: people });
+  }),
+);
+
+router.get(
+  "/:username/following",
+  wrap(async (req, res) => {
+    const people = await followPeople(req, "following");
+    res.json({ users: people });
+  }),
+);
+
+async function followPeople(req: { params: { username?: string }; user?: any }, kind: "followers" | "following") {
+  const user = await User.findOne({ username: String(req.params.username || "").toLowerCase() });
+  if (!user || user.suspended) throw new HttpError(404, "Profile unavailable");
+  if (user.blockedUserIds.some((id: unknown) => sameId(id, req.user!._id)) && !sameId(user._id, req.user!._id)) {
+    throw new HttpError(404, "Profile unavailable");
+  }
+  const rows = await Follow.find(kind === "followers" ? { following: user._id } : { follower: user._id }).limit(200);
+  const ids = rows.map((row: any) => (kind === "followers" ? row.follower : row.following));
+  if (!ids.length) return [];
+  const found = await User.find({ _id: { $in: ids }, suspended: false });
+  const byId = new Map(found.map((person: any) => [String(person._id), person]));
+  const blockedByViewer = new Set((req.user!.blockedUserIds || []).map((id: unknown) => String(id)));
+  return ids
+    .map((id: unknown) => byId.get(String(id)))
+    .filter((person: any) => {
+      if (!person) return false;
+      if (blockedByViewer.has(String(person._id))) return false;
+      if ((person.blockedUserIds || []).some((id: unknown) => sameId(id, req.user!._id))) return false;
+      return true;
+    })
+    .map((person: any) => authorMini(person));
+}
+
+router.get(
   "/:username/posts",
   wrap(async (req, res) => {
     const user = await User.findOne({ username: req.params.username.toLowerCase() });
